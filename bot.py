@@ -12,6 +12,7 @@ import json
 import time
 import sys
 import ccxt
+import threading
 
 def send_ntfy_notification(message):
     with open("config.json") as f:
@@ -68,6 +69,11 @@ if __name__ == "__main__":
             except Exception as e:
                 logging.error(f"Error in log_status: {e}")
 
+        def periodic_logger():
+            while True:
+                log_status()
+                time.sleep(10)
+
         # --- Bid Chase Logic ---
         bid_order_id = None
         position_entered = False
@@ -82,7 +88,7 @@ if __name__ == "__main__":
             except Exception as e:
                 logging.error(f"Error cancelling order: {e}")
 
-        def place_maker_bid(usd_balance):
+        def place_maker_bid(usd_balance, suppress_insufficient=False):
             best_bid = get_best_bid()
             if not best_bid:
                 logging.error("No best bid found.")
@@ -92,7 +98,8 @@ if __name__ == "__main__":
             if qty <= 0:
                 msg = f"Insufficient USD balance to place a bid. USD balance: {usd_balance}"
                 logging.warning(msg)
-                send_ntfy_notification(msg)
+                if not suppress_insufficient:
+                    send_ntfy_notification(msg)
                 return None
             # Place limit order just above best bid to be a maker
             price = round(best_bid + 0.01, 2)
@@ -103,7 +110,8 @@ if __name__ == "__main__":
                 return order['id']
             except Exception as e:
                 logging.error(f"Error placing maker bid: {e}")
-                send_ntfy_notification(f"Error placing maker bid: {e}")
+                if not suppress_insufficient:
+                    send_ntfy_notification(f"Error placing maker bid: {e}")
                 return None
 
         # Place initial bid
@@ -126,7 +134,9 @@ if __name__ == "__main__":
                     try:
                         order = exchange.fetch_order(order_id, symbol)
                         my_price = float(order['price'])
-                        if order['status'] == 'closed':
+                        filled_amt = float(order.get('filled', 0))
+                        status = order.get('status', '').lower()
+                        if status in ('closed', 'filled') or filled_amt > 0:
                             logging.info("Position entered.")
                             send_ntfy_notification("Position entered.")
                             return order
@@ -137,14 +147,9 @@ if __name__ == "__main__":
                         if my_price < target_price - 0.0001 or my_price > target_price + 0.0001:
                             print(f"[DEBUG] Cancelling and rebidding: my_price={my_price}, target_price={target_price}")
                             cancel_order(order_id)
-                            order_id = place_maker_bid(usd_balance)
+                            order_id = place_maker_bid(usd_balance, suppress_insufficient=True)
                     except Exception as e:
                         logging.error(f"Error chasing bid: {e}")
-                    time.sleep(0.5)
-                return None
-
-            # Start chasing bid until position entered
-            filled_order = chase_bid(bid_order_id, usd_balance)
 
         # --- Position Tracking and Ratchet Logic ---
         if filled_order:
@@ -182,9 +187,12 @@ if __name__ == "__main__":
                     logging.info(f"Ratchet up: new entry price {entry_price:.2f}, new lower threshold {lower_threshold:.2f}")
                 time.sleep(0.5)
 
+        # Start the logger thread
+        logger_thread = threading.Thread(target=periodic_logger, daemon=True)
+        logger_thread.start()
+
         while True:
-            log_status()
-            time.sleep(10)
+            time.sleep(1)
     except (KeyboardInterrupt, SystemExit):
         print("Bot shutting down.")
         send_ntfy_notification("Bot shut down")
