@@ -27,36 +27,14 @@ if __name__ == "__main__":
         "enableRateLimit": True,
     })
 
-    # Diagnostic: Print and notify all balances and BNB/USD-like symbols
-    try:
-        balances = exchange.fetch_balance()
-        print("Available balances:", balances["total"])
-        send_ntfy_notification(f"Balances: {balances['total']}")
-        markets = exchange.load_markets()
-        bnb_usd_symbols = [symbol for symbol in markets if "BNB" in symbol and "USD" in symbol]
-        print("BNB/USD-like symbols:", bnb_usd_symbols)
-        send_ntfy_notification(f"BNB/USD-like symbols: {bnb_usd_symbols}")
-        sys.exit()
-    except Exception as e:
-        print(f"Error fetching balances or symbols: {e}")
-        send_ntfy_notification(f"Error fetching balances or symbols: {e}")
-        sys.exit()
+    send_ntfy_notification("Bot started")
 
     symbol = "BNBUSD"
     print("Bot starting...")
-    send_ntfy_notification("Trading bot launched.")
 
     import logging
     logging.basicConfig(filename="bot.log", level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(message)s")
-
-    # Load config and set up Binance client
-    with open("config.json") as f:
-        config = json.load(f)
-    api_key = config["binance_api_key"]
-    api_secret = config["binance_api_secret"]
-    from binance.client import Client
-    client = Client(api_key, api_secret)
 
     # Get available USD balance
     try:
@@ -77,12 +55,12 @@ if __name__ == "__main__":
     position_entered = False
 
     def get_best_bid():
-        order_book = client.get_order_book(symbol=symbol)
+        order_book = exchange.fetch_order_book(symbol)
         return float(order_book['bids'][0][0]) if order_book['bids'] else None
 
     def cancel_order(order_id):
         try:
-            client.cancel_order(symbol=symbol, orderId=order_id)
+            exchange.cancel_order(order_id, symbol)
         except Exception as e:
             logging.error(f"Error cancelling order: {e}")
 
@@ -101,17 +79,10 @@ if __name__ == "__main__":
         # Place limit order just above best bid to be a maker
         price = round(best_bid + 0.01, 2)
         try:
-            order = client.create_order(
-                symbol=symbol,
-                side='BUY',
-                type='LIMIT',
-                timeInForce='GTC',
-                quantity=qty,
-                price=str(price)
-            )
+            order = exchange.create_limit_buy_order(symbol, qty, price)
             logging.info(f"Placed maker bid: qty={qty}, price={price}")
             send_ntfy_notification(f"Placed maker bid: qty={qty}, price={price}")
-            return order['orderId']
+            return order['id']
         except Exception as e:
             logging.error(f"Error placing maker bid: {e}")
             send_ntfy_notification(f"Error placing maker bid: {e}")
@@ -134,8 +105,8 @@ if __name__ == "__main__":
                 continue
             # Check if our order is still the best bid
             try:
-                order = client.get_order(symbol=symbol, orderId=order_id)
-                if order['status'] == 'FILLED':
+                order = exchange.fetch_order(order_id, symbol)
+                if order['status'] == 'closed':
                     logging.info("Position entered.")
                     send_ntfy_notification("Position entered.")
                     return order
@@ -154,7 +125,7 @@ if __name__ == "__main__":
     # --- Position Tracking and Ratchet Logic ---
     if filled_order:
         entry_price = float(filled_order['price'])
-        qty = float(filled_order['origQty'])
+        qty = float(filled_order['amount'])
         lower_threshold = entry_price * 0.998  # -0.2%
         ratchet_increment = 0.001  # 0.1%
         highest_bid = entry_price
@@ -174,12 +145,7 @@ if __name__ == "__main__":
             # If highest bid drops to <= lower threshold, exit position
             if best_bid <= lower_threshold:
                 try:
-                    sell_order = client.create_order(
-                        symbol=symbol,
-                        side='SELL',
-                        type='MARKET',
-                        quantity=qty
-                    )
+                    sell_order = exchange.create_market_sell_order(symbol, qty)
                     logging.info(f"Position exited at {best_bid}")
                     send_ntfy_notification(f"Position exited at {best_bid}")
                     position_active = False
@@ -197,5 +163,6 @@ if __name__ == "__main__":
             log_status()
             time.sleep(10)
     except KeyboardInterrupt:
-        send_ntfy_notification("Trading bot shutting down.")
         print("Bot shutting down.")
+    finally:
+        send_ntfy_notification("Bot shut down")
