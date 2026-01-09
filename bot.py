@@ -22,12 +22,7 @@ if __name__ == "__main__":
     from binance.client import Client
     client = Client(api_key, api_secret)
 
-    # TEMP: Print and notify all available symbols to find the correct one
-    exchange_info = client.get_exchange_info()
-    symbols = [s['symbol'] for s in exchange_info['symbols']]
-    print(symbols)
-    send_ntfy_notification(f"Available symbols: {symbols}")
-    exit()
+    symbol = "BNBUSD"
     print("Bot starting...")
     send_ntfy_notification("Trading bot launched.")
 
