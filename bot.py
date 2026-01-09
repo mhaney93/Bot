@@ -44,7 +44,7 @@ if __name__ == "__main__":
         logging.info(f"Bot running. USD balance: {usd_balance}")
 
     # --- Bid Chase Logic ---
-    symbol = "BNBUSD"
+    symbol = "BNB-USD"
     bid_order_id = None
     position_entered = False
 
