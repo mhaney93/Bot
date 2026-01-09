@@ -1,4 +1,3 @@
-
 # Main trading bot for BNB/USD on binance.us
 
 import logging
@@ -131,9 +130,12 @@ if __name__ == "__main__":
                             logging.info("Position entered.")
                             send_ntfy_notification("Position entered.")
                             return order
+                        # Debug: print price comparison
+                        print(f"[DEBUG] my_price: {my_price}, best_bid: {best_bid}, target_price: {round(best_bid + 0.01, 2)}")
                         # Only cancel/re-bid if outbid or stale
                         target_price = round(best_bid + 0.01, 2)
                         if my_price < target_price - 0.0001 or my_price > target_price + 0.0001:
+                            print(f"[DEBUG] Cancelling and rebidding: my_price={my_price}, target_price={target_price}")
                             cancel_order(order_id)
                             order_id = place_maker_bid(usd_balance)
                     except Exception as e:
