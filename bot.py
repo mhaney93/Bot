@@ -93,34 +93,36 @@ if __name__ == "__main__":
         msg = f"No USD balance available to place a bid. USD balance: {usd_balance}"
         logging.warning(msg)
         send_ntfy_notification(msg)
-        bid_order_id = None
+        print("No USD balance available. Bot will shut down.")
+        # Skip trading logic and exit gracefully
+        filled_order = None
     else:
         bid_order_id = place_maker_bid(usd_balance)
 
-    def chase_bid(order_id, usd_balance):
-        while not position_entered:
-            best_bid = get_best_bid()
-            if not best_bid:
+        def chase_bid(order_id, usd_balance):
+            while not position_entered:
+                best_bid = get_best_bid()
+                if not best_bid:
+                    time.sleep(2)
+                    continue
+                # Check if our order is still the best bid
+                try:
+                    order = exchange.fetch_order(order_id, symbol)
+                    if order['status'] == 'closed':
+                        logging.info("Position entered.")
+                        send_ntfy_notification("Position entered.")
+                        return order
+                    # If our price is not the best bid, cancel and replace
+                    if float(order['price']) < best_bid:
+                        cancel_order(order_id)
+                        order_id = place_maker_bid(usd_balance)
+                except Exception as e:
+                    logging.error(f"Error chasing bid: {e}")
                 time.sleep(2)
-                continue
-            # Check if our order is still the best bid
-            try:
-                order = exchange.fetch_order(order_id, symbol)
-                if order['status'] == 'closed':
-                    logging.info("Position entered.")
-                    send_ntfy_notification("Position entered.")
-                    return order
-                # If our price is not the best bid, cancel and replace
-                if float(order['price']) < best_bid:
-                    cancel_order(order_id)
-                    order_id = place_maker_bid(usd_balance)
-            except Exception as e:
-                logging.error(f"Error chasing bid: {e}")
-            time.sleep(2)
-        return None
+            return None
 
-    # Start chasing bid until position entered
-    filled_order = chase_bid(bid_order_id, usd_balance)
+        # Start chasing bid until position entered
+        filled_order = chase_bid(bid_order_id, usd_balance)
 
     # --- Position Tracking and Ratchet Logic ---
     if filled_order:
