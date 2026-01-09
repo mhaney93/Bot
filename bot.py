@@ -14,114 +14,6 @@ def send_ntfy_notification(message):
         print(f"Failed to send ntfy notification: {e}")
 
 if __name__ == "__main__":
-        # --- Bid Chase Logic ---
-        symbol = "BNBUSD"
-        bid_order_id = None
-        position_entered = False
-
-        def get_best_bid():
-            order_book = client.get_order_book(symbol=symbol)
-            return float(order_book['bids'][0][0]) if order_book['bids'] else None
-
-        def cancel_order(order_id):
-            try:
-                client.cancel_order(symbol=symbol, orderId=order_id)
-            except Exception as e:
-                logging.error(f"Error cancelling order: {e}")
-
-        def place_maker_bid(usd_balance):
-            best_bid = get_best_bid()
-            if not best_bid:
-                logging.error("No best bid found.")
-                return None
-            # Use 90% of available USD balance
-            qty = round((usd_balance * 0.9) / best_bid, 3)
-            # Place limit order just above best bid to be a maker
-            price = round(best_bid + 0.01, 2)
-            try:
-                order = client.create_order(
-                    symbol=symbol,
-                    side='BUY',
-                    type='LIMIT',
-                    timeInForce='GTC',
-                    quantity=qty,
-                    price=str(price)
-                )
-                logging.info(f"Placed maker bid: qty={qty}, price={price}")
-                send_ntfy_notification(f"Placed maker bid: qty={qty}, price={price}")
-                return order['orderId']
-            except Exception as e:
-                logging.error(f"Error placing maker bid: {e}")
-                return None
-
-        # Place initial bid
-        bid_order_id = place_maker_bid(usd_balance)
-
-        def chase_bid(order_id, usd_balance):
-            while not position_entered:
-                best_bid = get_best_bid()
-                if not best_bid:
-                    time.sleep(2)
-                    continue
-                # Check if our order is still the best bid
-                try:
-                    order = client.get_order(symbol=symbol, orderId=order_id)
-                    if order['status'] == 'FILLED':
-                        logging.info("Position entered.")
-                        send_ntfy_notification("Position entered.")
-                        return order
-                    # If our price is not the best bid, cancel and replace
-                    if float(order['price']) < best_bid:
-                        cancel_order(order_id)
-                        order_id = place_maker_bid(usd_balance)
-                except Exception as e:
-                    logging.error(f"Error chasing bid: {e}")
-                time.sleep(2)
-            return None
-
-        # Start chasing bid until position entered
-        filled_order = chase_bid(bid_order_id, usd_balance)
-
-        # --- Position Tracking and Ratchet Logic ---
-        if filled_order:
-            entry_price = float(filled_order['price'])
-            qty = float(filled_order['origQty'])
-            lower_threshold = entry_price * 0.998  # -0.2%
-            ratchet_increment = 0.001  # 0.1%
-            highest_bid = entry_price
-            position_active = True
-
-            while position_active:
-                best_bid = get_best_bid()
-                if not best_bid:
-                    time.sleep(2)
-                    continue
-                # Update highest bid
-                if best_bid > highest_bid:
-                    highest_bid = best_bid
-                    # Ratchet up lower threshold
-                    lower_threshold = highest_bid * (1 - ratchet_increment)
-                    logging.info(f"Ratchet up: new lower threshold {lower_threshold:.2f}")
-                # If highest bid drops to <= lower threshold, exit position
-                if best_bid <= lower_threshold:
-                    try:
-                        sell_order = client.create_order(
-                            symbol=symbol,
-                            side='SELL',
-                            type='MARKET',
-                            quantity=qty
-                        )
-                        logging.info(f"Position exited at {best_bid}")
-                        send_ntfy_notification(f"Position exited at {best_bid}")
-                        position_active = False
-                    except Exception as e:
-                        logging.error(f"Error placing market sell: {e}")
-                # If highest bid rises > +0.1% above entry, ratchet up threshold
-                if highest_bid > entry_price * (1 + ratchet_increment):
-                    entry_price = highest_bid
-                    lower_threshold = entry_price * (1 - ratchet_increment)
-                    logging.info(f"Ratchet up: new entry price {entry_price:.2f}, new lower threshold {lower_threshold:.2f}")
-                time.sleep(2)
     print("Bot starting...")
     send_ntfy_notification("Trading bot launched.")
 
@@ -150,6 +42,115 @@ if __name__ == "__main__":
     def log_status():
         # Placeholder for actual status info
         logging.info(f"Bot running. USD balance: {usd_balance}")
+
+    # --- Bid Chase Logic ---
+    symbol = "BNBUSD"
+    bid_order_id = None
+    position_entered = False
+
+    def get_best_bid():
+        order_book = client.get_order_book(symbol=symbol)
+        return float(order_book['bids'][0][0]) if order_book['bids'] else None
+
+    def cancel_order(order_id):
+        try:
+            client.cancel_order(symbol=symbol, orderId=order_id)
+        except Exception as e:
+            logging.error(f"Error cancelling order: {e}")
+
+    def place_maker_bid(usd_balance):
+        best_bid = get_best_bid()
+        if not best_bid:
+            logging.error("No best bid found.")
+            return None
+        # Use 90% of available USD balance
+        qty = round((usd_balance * 0.9) / best_bid, 3)
+        # Place limit order just above best bid to be a maker
+        price = round(best_bid + 0.01, 2)
+        try:
+            order = client.create_order(
+                symbol=symbol,
+                side='BUY',
+                type='LIMIT',
+                timeInForce='GTC',
+                quantity=qty,
+                price=str(price)
+            )
+            logging.info(f"Placed maker bid: qty={qty}, price={price}")
+            send_ntfy_notification(f"Placed maker bid: qty={qty}, price={price}")
+            return order['orderId']
+        except Exception as e:
+            logging.error(f"Error placing maker bid: {e}")
+            return None
+
+    # Place initial bid
+    bid_order_id = place_maker_bid(usd_balance)
+
+    def chase_bid(order_id, usd_balance):
+        while not position_entered:
+            best_bid = get_best_bid()
+            if not best_bid:
+                time.sleep(2)
+                continue
+            # Check if our order is still the best bid
+            try:
+                order = client.get_order(symbol=symbol, orderId=order_id)
+                if order['status'] == 'FILLED':
+                    logging.info("Position entered.")
+                    send_ntfy_notification("Position entered.")
+                    return order
+                # If our price is not the best bid, cancel and replace
+                if float(order['price']) < best_bid:
+                    cancel_order(order_id)
+                    order_id = place_maker_bid(usd_balance)
+            except Exception as e:
+                logging.error(f"Error chasing bid: {e}")
+            time.sleep(2)
+        return None
+
+    # Start chasing bid until position entered
+    filled_order = chase_bid(bid_order_id, usd_balance)
+
+    # --- Position Tracking and Ratchet Logic ---
+    if filled_order:
+        entry_price = float(filled_order['price'])
+        qty = float(filled_order['origQty'])
+        lower_threshold = entry_price * 0.998  # -0.2%
+        ratchet_increment = 0.001  # 0.1%
+        highest_bid = entry_price
+        position_active = True
+
+        while position_active:
+            best_bid = get_best_bid()
+            if not best_bid:
+                time.sleep(2)
+                continue
+            # Update highest bid
+            if best_bid > highest_bid:
+                highest_bid = best_bid
+                # Ratchet up lower threshold
+                lower_threshold = highest_bid * (1 - ratchet_increment)
+                logging.info(f"Ratchet up: new lower threshold {lower_threshold:.2f}")
+            # If highest bid drops to <= lower threshold, exit position
+            if best_bid <= lower_threshold:
+                try:
+                    sell_order = client.create_order(
+                        symbol=symbol,
+                        side='SELL',
+                        type='MARKET',
+                        quantity=qty
+                    )
+                    logging.info(f"Position exited at {best_bid}")
+                    send_ntfy_notification(f"Position exited at {best_bid}")
+                    position_active = False
+                except Exception as e:
+                    logging.error(f"Error placing market sell: {e}")
+            # If highest bid rises > +0.1% above entry, ratchet up threshold
+            if highest_bid > entry_price * (1 + ratchet_increment):
+                entry_price = highest_bid
+                lower_threshold = entry_price * (1 - ratchet_increment)
+                logging.info(f"Ratchet up: new entry price {entry_price:.2f}, new lower threshold {lower_threshold:.2f}")
+            time.sleep(2)
 
     try:
         while True:
