@@ -131,9 +131,9 @@ if __name__ == "__main__":
                             logging.info("Position entered.")
                             send_ntfy_notification("Position entered.")
                             return order
-                        # Only cancel/re-bid if our price is not exactly best_bid + 0.01
+                        # Only cancel/re-bid if outbid or stale
                         target_price = round(best_bid + 0.01, 2)
-                        if abs(my_price - target_price) > 0.0001:
+                        if my_price < target_price - 0.0001 or my_price > target_price + 0.0001:
                             cancel_order(order_id)
                             order_id = place_maker_bid(usd_balance)
                     except Exception as e:
