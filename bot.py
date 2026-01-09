@@ -191,7 +191,7 @@ if __name__ == "__main__":
         def periodic_logger():
             while True:
                 log_status()
-                time.sleep(1)
+                time.sleep(10)
 
         # --- Bid Chase Logic ---
         bid_order_id = None
