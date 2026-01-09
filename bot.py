@@ -14,6 +14,20 @@ def send_ntfy_notification(message):
         print(f"Failed to send ntfy notification: {e}")
 
 if __name__ == "__main__":
+    # Load config and set up Binance client
+    with open("config.json") as f:
+        config = json.load(f)
+    api_key = config["binance_api_key"]
+    api_secret = config["binance_api_secret"]
+    from binance.client import Client
+    client = Client(api_key, api_secret)
+
+    # TEMP: Print and notify all available symbols to find the correct one
+    exchange_info = client.get_exchange_info()
+    symbols = [s['symbol'] for s in exchange_info['symbols']]
+    print(symbols)
+    send_ntfy_notification(f"Available symbols: {symbols}")
+    exit()
     print("Bot starting...")
     send_ntfy_notification("Trading bot launched.")
 
@@ -44,7 +58,7 @@ if __name__ == "__main__":
         logging.info(f"Bot running. USD balance: {usd_balance}")
 
     # --- Bid Chase Logic ---
-    symbol = "BNB-USD"
+    symbol = "BNBUSDT"
     bid_order_id = None
     position_entered = False
 
