@@ -14,6 +14,7 @@ import sys
 import ccxt
 import threading
 import datetime
+import math
 
 def send_ntfy_notification(message):
     with open("config.json") as f:
@@ -59,8 +60,6 @@ if __name__ == "__main__":
                 now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 # Get order book
                 order_book = exchange.fetch_order_book(symbol)
-                next_highest_bid = float(order_book['bids'][0][0]) if order_book['bids'] else None
-                lowest_ask = float(order_book['asks'][0][0]) if order_book['asks'] else None
                 # Get your open bid (if any)
                 open_bid_price = None
                 open_bid_value = None
@@ -70,13 +69,22 @@ if __name__ == "__main__":
                         open_bid_price = float(order['price'])
                         open_bid_value = float(order['amount']) * open_bid_price
                         break
+                # Find next highest open bid (not your own)
+                next_highest_bid = None
+                for bid in order_book['bids']:
+                    bid_price = float(bid[0])
+                    if open_bid_price is not None and math.isclose(bid_price, open_bid_price, abs_tol=0.0001):
+                        continue  # skip your own bid
+                    next_highest_bid = bid_price
+                    break
+                lowest_ask = float(order_book['asks'][0][0]) if order_book['asks'] else None
                 # Position info
                 position_info = ''
                 if filled_order:
                     entry_price = float(filled_order['price'])
                     qty = float(filled_order['amount'])
                     position_info = f" | Position: entry={entry_price}, qty={qty}"
-                msg = f"{now}: Open bid: {open_bid_price} (USD value: {open_bid_value}), Next highest bid: {next_highest_bid}, Lowest ask: {lowest_ask}{position_info}"
+                msg = f"{now}: Open bid: {open_bid_price} (USD value: {open_bid_value}), Next highest open bid: {next_highest_bid}, Lowest ask: {lowest_ask}{position_info}"
                 print(msg)
                 logging.info(msg)
                 for handler in logging.getLogger().handlers:
