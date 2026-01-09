@@ -58,6 +58,8 @@ if __name__ == "__main__":
             open_orders = exchange.fetch_open_orders(symbol)
             best_bid = get_best_bid()
             logging.info(f"Status: USD balance: {usd}, Open orders: {len(open_orders)}, Best bid: {best_bid}")
+            for handler in logging.getLogger().handlers:
+                handler.flush()
         except Exception as e:
             logging.error(f"Error in log_status: {e}")
 
