@@ -107,15 +107,15 @@ if __name__ == "__main__":
                 if not best_bid:
                     time.sleep(0.5)
                     continue
-                # Check if our order is still the best bid
                 try:
                     order = exchange.fetch_order(order_id, symbol)
+                    my_price = float(order['price'])
                     if order['status'] == 'closed':
                         logging.info("Position entered.")
                         send_ntfy_notification("Position entered.")
                         return order
-                    # If our price is not the best bid, cancel and replace
-                    if float(order['price']) < best_bid:
+                    # If our price is not the best bid, or is stale (more than $0.01 above best bid), cancel and replace
+                    if my_price < best_bid or my_price > best_bid + 0.011:
                         cancel_order(order_id)
                         order_id = place_maker_bid(usd_balance)
                 except Exception as e:
@@ -162,11 +162,14 @@ if __name__ == "__main__":
                 logging.info(f"Ratchet up: new entry price {entry_price:.2f}, new lower threshold {lower_threshold:.2f}")
             time.sleep(0.5)
 
+    import atexit
+    def notify_shutdown():
+        send_ntfy_notification("Bot shut down")
+    atexit.register(notify_shutdown)
+
     try:
         while True:
             log_status()
             time.sleep(10)
     except KeyboardInterrupt:
         print("Bot shutting down.")
-    finally:
-        send_ntfy_notification("Bot shut down")
