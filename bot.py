@@ -13,6 +13,7 @@ import time
 import sys
 import ccxt
 import threading
+import datetime
 
 def send_ntfy_notification(message):
     with open("config.json") as f:
@@ -54,15 +55,26 @@ if __name__ == "__main__":
             usd_balance = 0
 
         def log_status():
-            # Log current status: USD balance, open orders, and best bid
             try:
-                balances = exchange.fetch_balance()
-                usd = balances['total'].get('USD', 0)
-                if usd == 0:
-                    usd = balances['total'].get('USD4', 0)
+                now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                # Get order book
+                order_book = exchange.fetch_order_book(symbol)
+                next_highest_bid = float(order_book['bids'][0][0]) if order_book['bids'] else None
+                lowest_ask = float(order_book['asks'][0][0]) if order_book['asks'] else None
+                # Get your open bid (if any)
+                my_bid_price = None
                 open_orders = exchange.fetch_open_orders(symbol)
-                best_bid = get_best_bid()
-                msg = f"Status: USD balance: {usd}, Open orders: {len(open_orders)}, Best bid: {best_bid}"
+                for order in open_orders:
+                    if order['side'].upper() == 'BUY' and order['status'] in ('open', 'new'):
+                        my_bid_price = float(order['price'])
+                        break
+                # Position info
+                position_info = ''
+                if filled_order:
+                    entry_price = float(filled_order['price'])
+                    qty = float(filled_order['amount'])
+                    position_info = f" | Position: entry={entry_price}, qty={qty}"
+                msg = f"{now}: My open bid: {my_bid_price}, Next highest bid: {next_highest_bid}, Lowest ask: {lowest_ask}{position_info}"
                 print(msg)
                 logging.info(msg)
                 for handler in logging.getLogger().handlers:
