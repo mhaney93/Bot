@@ -84,7 +84,7 @@ if __name__ == "__main__":
                     entry_price = float(filled_order['price'])
                     qty = float(filled_order['amount'])
                     position_info = f" | Position: entry={entry_price}, qty={qty}"
-                msg = f"{now}: Open bid: {open_bid_value}, {open_bid_price}, Next highest open bid: {next_highest_bid}, Lowest ask: {lowest_ask}{position_info}"
+                msg = f"{now}: Open bid: ${open_bid_value}, {open_bid_price}, Next highest open bid: {next_highest_bid}, Lowest ask: {lowest_ask}{position_info}"
                 print(msg)
                 logging.info(msg)
                 for handler in logging.getLogger().handlers:
