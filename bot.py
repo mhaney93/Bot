@@ -80,8 +80,11 @@ def bid_chaser():
                         return order
                     # If outbid or stale, cancel and rebid
                     target_price = round(next_highest_bid + 0.01, 2) if next_highest_bid is not None else None
+                    # Debug: print price comparison and rebid decision
+                    print(f"[DEBUG] my_price: {my_price}, next_highest_bid: {next_highest_bid}, target_price: {target_price}")
                     if (next_highest_bid is not None and (
                         my_price < target_price - 0.0001 or my_price > target_price + 0.0001)):
+                        print(f"[DEBUG] Cancelling and rebidding: my_price={my_price}, target_price={target_price}")
                         cancel_order(order_id)
                         # Fetch latest balance before rebidding
                         try:
