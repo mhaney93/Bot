@@ -28,6 +28,7 @@ def send_ntfy_notification(message):
 
 def bid_chaser():
     global filled_order
+    notified_no_balance = False
     while True:
         # Always fetch the latest USD balance
         try:
@@ -38,13 +39,6 @@ def bid_chaser():
         except Exception as e:
             logging.error(f"Error fetching account info in bid_chaser: {e}")
             usd_balance = 0
-        if usd_balance <= 0:
-            msg = f"No USD balance available to place a bid. USD balance: {usd_balance}"
-            logging.warning(msg)
-            send_ntfy_notification(msg)
-            print("No USD balance available. Bot will shut down.")
-            filled_order = None
-            return
         # Always fetch your current open buy order (if any)
         open_orders = exchange.fetch_open_orders(symbol)
         my_bid_order = None
@@ -52,16 +46,16 @@ def bid_chaser():
             if order['side'].upper() == 'BUY' and order['status'] in ('open', 'new'):
                 my_bid_order = order
                 break
-        order_book = exchange.fetch_order_book(symbol)
-        next_highest_bid = None
-        if order_book['bids']:
-            import math
-            for bid in order_book['bids']:
-                bid_price = float(bid[0])
-                if my_bid_order and math.isclose(bid_price, float(my_bid_order['price']), abs_tol=0.0001):
-                    continue  # skip our own bid
-                next_highest_bid = bid_price
-                break
+        # If no open bid, no position, and no balance, notify and exit
+        if usd_balance <= 0 and not my_bid_order and not filled_order:
+            if not notified_no_balance:
+                msg = f"No USD balance available to place a bid. USD balance: {usd_balance}"
+                logging.warning(msg)
+                send_ntfy_notification(msg)
+                print("No USD balance available. Bot will shut down.")
+                notified_no_balance = True
+            filled_order = None
+            return
         # If no open bid, place one
         if not my_bid_order:
             target_price = round((next_highest_bid if next_highest_bid else 0) + 0.01, 2)
