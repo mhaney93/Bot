@@ -105,7 +105,7 @@ if __name__ == "__main__":
             while not position_entered:
                 best_bid = get_best_bid()
                 if not best_bid:
-                    time.sleep(2)
+                    time.sleep(0.5)
                     continue
                 # Check if our order is still the best bid
                 try:
@@ -120,7 +120,7 @@ if __name__ == "__main__":
                         order_id = place_maker_bid(usd_balance)
                 except Exception as e:
                     logging.error(f"Error chasing bid: {e}")
-                time.sleep(2)
+                time.sleep(0.5)
             return None
 
         # Start chasing bid until position entered
@@ -138,7 +138,7 @@ if __name__ == "__main__":
         while position_active:
             best_bid = get_best_bid()
             if not best_bid:
-                time.sleep(2)
+                time.sleep(0.5)
                 continue
             # Update highest bid
             if best_bid > highest_bid:
@@ -160,7 +160,7 @@ if __name__ == "__main__":
                 entry_price = highest_bid
                 lower_threshold = entry_price * (1 - ratchet_increment)
                 logging.info(f"Ratchet up: new entry price {entry_price:.2f}, new lower threshold {lower_threshold:.2f}")
-            time.sleep(2)
+            time.sleep(0.5)
 
     try:
         while True:
