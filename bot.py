@@ -39,8 +39,6 @@ if __name__ == "__main__":
     # Get available USD balance (ccxt)
     try:
         balances = exchange.fetch_balance()
-        print("[DEBUG] ccxt balances:", balances)
-        logging.info(f"[DEBUG] ccxt balances: {balances}")
         # Try 'USD', 'USD4', and other possible keys
         usd_balance = balances['total'].get('USD', 0)
         if usd_balance == 0:
