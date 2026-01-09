@@ -36,11 +36,15 @@ if __name__ == "__main__":
     logging.basicConfig(filename="bot.log", level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(message)s")
 
-    # Get available USD balance
+    # Get available USD balance (ccxt)
     try:
-        account_info = client.get_account()
-        balances = {bal['asset']: float(bal['free']) for bal in account_info['balances']}
-        usd_balance = balances.get('USD', 0)
+        balances = exchange.fetch_balance()
+        print("[DEBUG] ccxt balances:", balances)
+        logging.info(f"[DEBUG] ccxt balances: {balances}")
+        # Try 'USD', 'USD4', and other possible keys
+        usd_balance = balances['total'].get('USD', 0)
+        if usd_balance == 0:
+            usd_balance = balances['total'].get('USD4', 0)
         logging.info(f"Available USD balance: {usd_balance}")
     except Exception as e:
         logging.error(f"Error fetching account info: {e}")
