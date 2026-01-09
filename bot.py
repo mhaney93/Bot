@@ -53,7 +53,6 @@ if __name__ == "__main__":
         logging.info(f"Bot running. USD balance: {usd_balance}")
 
     # --- Bid Chase Logic ---
-    symbol = "BNBUSDT"
     bid_order_id = None
     position_entered = False
 
@@ -74,6 +73,11 @@ if __name__ == "__main__":
             return None
         # Use 90% of available USD balance
         qty = round((usd_balance * 0.9) / best_bid, 3)
+        if qty <= 0:
+            msg = f"Insufficient USD balance to place a bid. USD balance: {usd_balance}"
+            logging.warning(msg)
+            send_ntfy_notification(msg)
+            return None
         # Place limit order just above best bid to be a maker
         price = round(best_bid + 0.01, 2)
         try:
@@ -90,10 +94,17 @@ if __name__ == "__main__":
             return order['orderId']
         except Exception as e:
             logging.error(f"Error placing maker bid: {e}")
+            send_ntfy_notification(f"Error placing maker bid: {e}")
             return None
 
     # Place initial bid
-    bid_order_id = place_maker_bid(usd_balance)
+    if usd_balance <= 0:
+        msg = f"No USD balance available to place a bid. USD balance: {usd_balance}"
+        logging.warning(msg)
+        send_ntfy_notification(msg)
+        bid_order_id = None
+    else:
+        bid_order_id = place_maker_bid(usd_balance)
 
     def chase_bid(order_id, usd_balance):
         while not position_entered:
