@@ -166,14 +166,21 @@ if __name__ == "__main__":
                     next_highest_bid = bid_price
                     break
                 lowest_ask = float(order_book['asks'][0][0]) if order_book['asks'] else None
-                # Position info
-                position_info = ''
-                if filled_order:
-                    entry_price = float(filled_order['price'])
-                    qty = float(filled_order['amount'])
-                    position_info = f" | Position: entry={entry_price}, qty={qty}"
+                # Position info: show all tracked positions
+                positions_info = ''
+                if positions:
+                    positions_info = ' | Positions: '
+                    pos_strs = []
+                    for i, pos in enumerate(positions, 1):
+                        entry_price = pos['price']
+                        qty = pos['qty']
+                        usd_val = entry_price * qty
+                        pos_strs.append(f"[{i}] entry={entry_price}, qty={qty}, usd=${usd_val:.2f}")
+                    positions_info += '; '.join(pos_strs)
+                else:
+                    positions_info = ' | Positions: None'
                 usd_value_str = f"{open_bid_value:.2f}" if open_bid_value is not None else "None"
-                msg = f"{now}: Open bid: ${usd_value_str}, {open_bid_price}, Next highest: {next_highest_bid}, Lowest ask: {lowest_ask}{position_info}"
+                msg = f"{now}: Open bid: ${usd_value_str}, {open_bid_price}, Next highest: {next_highest_bid}, Lowest ask: {lowest_ask}{positions_info}"
                 print(msg)
                 logging.info(msg)
                 for handler in logging.getLogger().handlers:
