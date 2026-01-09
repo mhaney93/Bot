@@ -62,11 +62,13 @@ if __name__ == "__main__":
                 next_highest_bid = float(order_book['bids'][0][0]) if order_book['bids'] else None
                 lowest_ask = float(order_book['asks'][0][0]) if order_book['asks'] else None
                 # Get your open bid (if any)
-                my_bid_price = None
+                open_bid_price = None
+                open_bid_value = None
                 open_orders = exchange.fetch_open_orders(symbol)
                 for order in open_orders:
                     if order['side'].upper() == 'BUY' and order['status'] in ('open', 'new'):
-                        my_bid_price = float(order['price'])
+                        open_bid_price = float(order['price'])
+                        open_bid_value = float(order['amount']) * open_bid_price
                         break
                 # Position info
                 position_info = ''
@@ -74,7 +76,7 @@ if __name__ == "__main__":
                     entry_price = float(filled_order['price'])
                     qty = float(filled_order['amount'])
                     position_info = f" | Position: entry={entry_price}, qty={qty}"
-                msg = f"{now}: My open bid: {my_bid_price}, Next highest bid: {next_highest_bid}, Lowest ask: {lowest_ask}{position_info}"
+                msg = f"{now}: Open bid: {open_bid_price} (USD value: {open_bid_value}), Next highest bid: {next_highest_bid}, Lowest ask: {lowest_ask}{position_info}"
                 print(msg)
                 logging.info(msg)
                 for handler in logging.getLogger().handlers:
