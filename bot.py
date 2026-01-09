@@ -61,7 +61,9 @@ if __name__ == "__main__":
                     usd = balances['total'].get('USD4', 0)
                 open_orders = exchange.fetch_open_orders(symbol)
                 best_bid = get_best_bid()
-                logging.info(f"Status: USD balance: {usd}, Open orders: {len(open_orders)}, Best bid: {best_bid}")
+                msg = f"Status: USD balance: {usd}, Open orders: {len(open_orders)}, Best bid: {best_bid}"
+                print(msg)
+                logging.info(msg)
                 for handler in logging.getLogger().handlers:
                     handler.flush()
             except Exception as e:
@@ -129,7 +131,7 @@ if __name__ == "__main__":
                             logging.info("Position entered.")
                             send_ntfy_notification("Position entered.")
                             return order
-                        # If our price is not exactly best_bid + 0.01, cancel and replace
+                        # Only cancel/re-bid if our price is not exactly best_bid + 0.01
                         target_price = round(best_bid + 0.01, 2)
                         if abs(my_price - target_price) > 0.0001:
                             cancel_order(order_id)
