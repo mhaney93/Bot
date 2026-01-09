@@ -60,18 +60,18 @@ def bid_chaser():
         # If no open bid, place one
         if not my_bid_order:
             if next_highest_bid is None:
-                time.sleep(0.5)
+                time.sleep(3)
                 continue
             target_price = round(next_highest_bid + 0.01, 2)
             qty = round((usd_balance * 0.9) / target_price, 3) if target_price > 0 else 0
             if qty > 0:
                 place_maker_bid(usd_balance, suppress_insufficient=True)
-            time.sleep(0.5)
+            time.sleep(3)
             continue
         # If we have an open bid, check if it's stale or outbid
         my_price = float(my_bid_order['price'])
         if next_highest_bid is None:
-            time.sleep(0.5)
+            time.sleep(3)
             continue
         target_price = round(next_highest_bid + 0.01, 2)
         # Debug print
@@ -89,7 +89,7 @@ def bid_chaser():
                 logging.error(f"Error fetching account info in chase_bid: {e}")
                 usd_balance = 0
             place_maker_bid(usd_balance, suppress_insufficient=True)
-            time.sleep(0.5)
+            time.sleep(3)
             continue
         # Check if our order is filled
         try:
@@ -103,7 +103,7 @@ def bid_chaser():
                 return
         except Exception as e:
             logging.error(f"Error checking fill status: {e}")
-        time.sleep(0.5)
+        time.sleep(3)
     return None
 
 if __name__ == "__main__":
