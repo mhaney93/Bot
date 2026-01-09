@@ -85,7 +85,7 @@ if __name__ == "__main__":
         try:
             order = exchange.create_limit_buy_order(symbol, qty, price)
             logging.info(f"Placed maker bid: qty={qty}, price={price}")
-            send_ntfy_notification(f"Placed maker bid: qty={qty}, price={price}")
+            # No notification for placing a bid
             return order['id']
         except Exception as e:
             logging.error(f"Error placing maker bid: {e}")
