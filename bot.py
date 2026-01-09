@@ -46,19 +46,23 @@ def bid_chaser():
             if order['side'].upper() == 'BUY' and order['status'] in ('open', 'new'):
                 my_bid_order = order
                 break
-        # If no open bid, no position, and no balance, notify and exit
-        if usd_balance <= 0 and not my_bid_order and not filled_order:
-            if not notified_no_balance:
-                msg = f"No USD balance available to place a bid. USD balance: {usd_balance}"
-                logging.warning(msg)
-                send_ntfy_notification(msg)
-                print("No USD balance available. Bot will shut down.")
-                notified_no_balance = True
-            filled_order = None
-            return
+        # Always define next_highest_bid
+        next_highest_bid = None
+        order_book = exchange.fetch_order_book(symbol)
+        if order_book['bids']:
+            import math
+            for bid in order_book['bids']:
+                bid_price = float(bid[0])
+                if my_bid_order and math.isclose(bid_price, float(my_bid_order['price']), abs_tol=0.0001):
+                    continue  # skip our own bid
+                next_highest_bid = bid_price
+                break
         # If no open bid, place one
         if not my_bid_order:
-            target_price = round((next_highest_bid if next_highest_bid else 0) + 0.01, 2)
+            if next_highest_bid is None:
+                time.sleep(0.5)
+                continue
+            target_price = round(next_highest_bid + 0.01, 2)
             qty = round((usd_balance * 0.9) / target_price, 3) if target_price > 0 else 0
             if qty > 0:
                 place_maker_bid(usd_balance, suppress_insufficient=True)
@@ -66,11 +70,13 @@ def bid_chaser():
             continue
         # If we have an open bid, check if it's stale or outbid
         my_price = float(my_bid_order['price'])
-        target_price = round((next_highest_bid if next_highest_bid else 0) + 0.01, 2)
+        if next_highest_bid is None:
+            time.sleep(0.5)
+            continue
+        target_price = round(next_highest_bid + 0.01, 2)
         # Debug print
         print(f"[DEBUG] my_price: {my_price}, next_highest_bid: {next_highest_bid}, target_price: {target_price}")
-        if (next_highest_bid is not None and (
-            my_price < target_price - 0.0001 or my_price > target_price + 0.0001)):
+        if (my_price < target_price - 0.0001 or my_price > target_price + 0.0001):
             print(f"[DEBUG] Cancelling and rebidding: my_price={my_price}, target_price={target_price}")
             cancel_order(my_bid_order['id'])
             # Fetch latest balance before rebidding
