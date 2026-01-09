@@ -25,6 +25,7 @@ def send_ntfy_notification(message):
         print(f"Failed to send ntfy notification: {e}")
 
 if __name__ == "__main__":
+        filled_order = None
     try:
         # Load config and set up ccxt Binance.US client
         with open("config.json") as f:
