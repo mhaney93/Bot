@@ -26,6 +26,7 @@ def send_ntfy_notification(message):
     except Exception as e:
         print(f"Failed to send ntfy notification: {e}")
 
+positions = []  # Track all filled positions as dicts: {'price': ..., 'qty': ...}
 def bid_chaser():
     global filled_order
     notified_no_balance = False
@@ -91,14 +92,21 @@ def bid_chaser():
             place_maker_bid(usd_balance, suppress_insufficient=True)
             time.sleep(3)
             continue
-        # Check if our order is filled
+        # Check if our order is filled or partially filled
         try:
             order = exchange.fetch_order(my_bid_order['id'], symbol)
             filled_amt = float(order.get('filled', 0))
             status = order.get('status', '').lower()
-            if status in ('closed', 'filled') or filled_amt > 0:
-                logging.info("Position entered.")
-                send_ntfy_notification("Position entered.")
+            # If any portion is filled, track as a position
+            if filled_amt > 0:
+                entry_price = float(order['price'])
+                # Only add new position if not already tracked
+                already_tracked = any(abs(p['price'] - entry_price) < 0.0001 and abs(p['qty'] - filled_amt) < 0.0001 for p in positions)
+                if not already_tracked:
+                    positions.append({'price': entry_price, 'qty': filled_amt})
+                    logging.info(f"Position tracked: entry={entry_price}, qty={filled_amt}")
+            # If order is fully filled, remove/cancel tracking of open bid
+            if status in ('closed', 'filled'):
                 filled_order = order
                 return
         except Exception as e:
