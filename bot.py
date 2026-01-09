@@ -28,41 +28,62 @@ def send_ntfy_notification(message):
 
 def bid_chaser():
     global filled_order
-    if usd_balance <= 0:
-        msg = f"No USD balance available to place a bid. USD balance: {usd_balance}"
-        logging.warning(msg)
-        send_ntfy_notification(msg)
-        print("No USD balance available. Bot will shut down.")
-        filled_order = None
-        return
-    bid_order_id = place_maker_bid(usd_balance)
-    def chase_bid(order_id, usd_balance):
-        global filled_order
-        while not position_entered and order_id:
-            best_bid = get_best_bid()
-            if not best_bid:
+    while True:
+        # Always fetch the latest USD balance
+        try:
+            balances = exchange.fetch_balance()
+            usd_balance = balances['total'].get('USD', 0)
+            if usd_balance == 0:
+                usd_balance = balances['total'].get('USD4', 0)
+        except Exception as e:
+            logging.error(f"Error fetching account info in bid_chaser: {e}")
+            usd_balance = 0
+        if usd_balance <= 0:
+            msg = f"No USD balance available to place a bid. USD balance: {usd_balance}"
+            logging.warning(msg)
+            send_ntfy_notification(msg)
+            print("No USD balance available. Bot will shut down.")
+            filled_order = None
+            return
+        bid_order_id = place_maker_bid(usd_balance, suppress_insufficient=True)
+        def chase_bid(order_id, usd_balance):
+            global filled_order
+            while not position_entered and order_id:
+                best_bid = get_best_bid()
+                if not best_bid:
+                    time.sleep(0.5)
+                    continue
+                try:
+                    order = exchange.fetch_order(order_id, symbol)
+                    my_price = float(order['price'])
+                    filled_amt = float(order.get('filled', 0))
+                    status = order.get('status', '').lower()
+                    if status in ('closed', 'filled') or filled_amt > 0:
+                        logging.info("Position entered.")
+                        send_ntfy_notification("Position entered.")
+                        filled_order = order
+                        return order
+                    # Only cancel/re-bid if outbid or stale
+                    target_price = round(best_bid + 0.01, 2)
+                    if my_price < target_price - 0.0001 or my_price > target_price + 0.0001:
+                        cancel_order(order_id)
+                        # Fetch latest balance before rebidding
+                        try:
+                            balances = exchange.fetch_balance()
+                            usd_balance = balances['total'].get('USD', 0)
+                            if usd_balance == 0:
+                                usd_balance = balances['total'].get('USD4', 0)
+                        except Exception as e:
+                            logging.error(f"Error fetching account info in chase_bid: {e}")
+                            usd_balance = 0
+                        order_id = place_maker_bid(usd_balance, suppress_insufficient=True)
+                except Exception as e:
+                    logging.error(f"Error chasing bid: {e}")
                 time.sleep(0.5)
-                continue
-            try:
-                order = exchange.fetch_order(order_id, symbol)
-                my_price = float(order['price'])
-                filled_amt = float(order.get('filled', 0))
-                status = order.get('status', '').lower()
-                if status in ('closed', 'filled') or filled_amt > 0:
-                    logging.info("Position entered.")
-                    send_ntfy_notification("Position entered.")
-                    filled_order = order
-                    return order
-                # Only cancel/re-bid if outbid or stale
-                target_price = round(best_bid + 0.01, 2)
-                if my_price < target_price - 0.0001 or my_price > target_price + 0.0001:
-                    cancel_order(order_id)
-                    order_id = place_maker_bid(usd_balance, suppress_insufficient=True)
-            except Exception as e:
-                logging.error(f"Error chasing bid: {e}")
-            time.sleep(0.5)
-        return None
-    chase_bid(bid_order_id, usd_balance)
+            return None
+        chase_bid(bid_order_id, usd_balance)
+        # After position entered or no balance, exit loop
+        break
 
 if __name__ == "__main__":
     filled_order = None
