@@ -1,9 +1,11 @@
 # Main trading bot for BNB/USD on binance.us
 
+
 import requests
 import json
 import time
 import sys
+import ccxt
 
 def send_ntfy_notification(message):
     with open("config.json") as f:
@@ -16,22 +18,22 @@ def send_ntfy_notification(message):
         print(f"Failed to send ntfy notification: {e}")
 
 if __name__ == "__main__":
-    # Load config and set up Binance client
+    # Load config and set up ccxt Binance.US client
     with open("config.json") as f:
         config = json.load(f)
-    api_key = config["binance_api_key"]
-    api_secret = config["binance_api_secret"]
-    from binance.client import Client
-    client = Client(api_key, api_secret)
+    exchange = ccxt.binanceus({
+        "apiKey": config["binance_api_key"],
+        "secret": config["binance_api_secret"],
+        "enableRateLimit": True,
+    })
 
     # Diagnostic: Print and notify all balances and BNB/USD-like symbols
     try:
-        account_info = client.get_account()
-        balances = {bal['asset']: float(bal['free']) for bal in account_info['balances']}
-        print("Available balances:", balances)
-        send_ntfy_notification(f"Balances: {balances}")
-        exchange_info = client.get_exchange_info()
-        bnb_usd_symbols = [s['symbol'] for s in exchange_info['symbols'] if 'BNB' in s['symbol'] and 'USD' in s['symbol']]
+        balances = exchange.fetch_balance()
+        print("Available balances:", balances["total"])
+        send_ntfy_notification(f"Balances: {balances['total']}")
+        markets = exchange.load_markets()
+        bnb_usd_symbols = [symbol for symbol in markets if "BNB" in symbol and "USD" in symbol]
         print("BNB/USD-like symbols:", bnb_usd_symbols)
         send_ntfy_notification(f"BNB/USD-like symbols: {bnb_usd_symbols}")
         sys.exit()
