@@ -49,13 +49,28 @@ def bid_chaser():
         def chase_bid(order_id, usd_balance):
             global filled_order
             while not position_entered and order_id:
-                best_bid = get_best_bid()
-                if not best_bid:
+                order_book = exchange.fetch_order_book(symbol)
+                # Find next highest bid (not our own)
+                my_price = None
+                next_highest_bid = None
+                if order_book['bids']:
+                    open_orders = exchange.fetch_open_orders(symbol)
+                    for order in open_orders:
+                        if order['side'].upper() == 'BUY' and order['status'] in ('open', 'new'):
+                            my_price = float(order['price'])
+                            break
+                    import math
+                    for bid in order_book['bids']:
+                        bid_price = float(bid[0])
+                        if my_price is not None and math.isclose(bid_price, my_price, abs_tol=0.0001):
+                            continue  # skip our own bid
+                        next_highest_bid = bid_price
+                        break
+                if not order_book['bids'] or my_price is None:
                     time.sleep(0.5)
                     continue
                 try:
                     order = exchange.fetch_order(order_id, symbol)
-                    my_price = float(order['price'])
                     filled_amt = float(order.get('filled', 0))
                     status = order.get('status', '').lower()
                     if status in ('closed', 'filled') or filled_amt > 0:
@@ -63,9 +78,8 @@ def bid_chaser():
                         send_ntfy_notification("Position entered.")
                         filled_order = order
                         return order
-                    # Only cancel/re-bid if outbid or stale
-                    target_price = round(best_bid + 0.01, 2)
-                    if my_price < target_price - 0.0001 or my_price > target_price + 0.0001:
+                    # If our bid is more than $0.01 above the next highest, cancel and rebid
+                    if next_highest_bid is not None and my_price > next_highest_bid + 0.011:
                         cancel_order(order_id)
                         # Fetch latest balance before rebidding
                         try:
