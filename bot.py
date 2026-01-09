@@ -67,12 +67,12 @@ def bid_chaser():
             qty = round((usd_balance * 0.9) / target_price, 3) if target_price > 0 else 0
             if qty > 0:
                 place_maker_bid(usd_balance, suppress_insufficient=True)
-            time.sleep(3)
+            time.sleep(1)
             continue
         # If we have an open bid, check if it's stale or outbid
         my_price = float(my_bid_order['price'])
         if next_highest_bid is None:
-            time.sleep(3)
+            time.sleep(1)
             continue
         target_price = round(next_highest_bid + 0.01, 2)
         # Debug print
@@ -111,7 +111,7 @@ def bid_chaser():
                 return
         except Exception as e:
             logging.error(f"Error checking fill status: {e}")
-        time.sleep(3)
+        time.sleep(1)
     return None
 
 if __name__ == "__main__":
@@ -191,7 +191,7 @@ if __name__ == "__main__":
         def periodic_logger():
             while True:
                 log_status()
-                time.sleep(10)
+                time.sleep(1)
 
         # --- Bid Chase Logic ---
         bid_order_id = None
@@ -209,19 +209,24 @@ if __name__ == "__main__":
 
         def place_maker_bid(usd_balance, suppress_insufficient=False):
             best_bid = get_best_bid()
-            if not best_bid:
-                logging.error("No best bid found.")
+            order_book = exchange.fetch_order_book(symbol)
+            if not best_bid or not order_book['asks']:
+                logging.error("No best bid or ask found.")
                 return None
-            # Use 90% of available USD balance
-            qty = round((usd_balance * 0.9) / best_bid, 3)
+            lowest_ask = float(order_book['asks'][0][0])
+            tick_size = 0.01
+            # Only place a bid if it will NOT cross the spread (maker only)
+            price = round(min(best_bid + tick_size, lowest_ask - tick_size), 2)
+            if price >= lowest_ask:
+                logging.warning(f"Maker bid would cross the spread (price={price} >= lowest_ask={lowest_ask}), skipping bid.")
+                return None
+            qty = round((usd_balance * 0.9) / price, 3)
             if qty <= 0:
                 msg = f"Insufficient USD balance to place a bid. USD balance: {usd_balance}"
                 logging.warning(msg)
                 if not suppress_insufficient:
                     send_ntfy_notification(msg)
                 return None
-            # Place limit order just above best bid to be a maker
-            price = round(best_bid + 0.01, 2)
             try:
                 order = exchange.create_limit_buy_order(symbol, qty, price)
                 logging.info(f"Placed maker bid: qty={qty}, price={price}")
@@ -253,7 +258,7 @@ if __name__ == "__main__":
         bid_thread.start()
 
         while True:
-            time.sleep(1)
+            time.sleep(10)
     except (KeyboardInterrupt, SystemExit):
         print("Bot shutting down.")
         send_ntfy_notification("Bot shut down")
