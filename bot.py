@@ -108,7 +108,8 @@ def bid_chaser():
             # If order is fully filled, remove/cancel tracking of open bid
             if status in ('closed', 'filled'):
                 filled_order = order
-                return
+                # Instead of return, continue to track new orders/positions
+                continue
         except Exception as e:
             logging.error(f"Error checking fill status: {e}")
         time.sleep(1)
