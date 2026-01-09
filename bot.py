@@ -1,7 +1,9 @@
 # Main trading bot for BNB/USD on binance.us
+
 import requests
 import json
 import time
+import sys
 
 def send_ntfy_notification(message):
     with open("config.json") as f:
@@ -21,6 +23,22 @@ if __name__ == "__main__":
     api_secret = config["binance_api_secret"]
     from binance.client import Client
     client = Client(api_key, api_secret)
+
+    # Diagnostic: Print and notify all balances and BNB/USD-like symbols
+    try:
+        account_info = client.get_account()
+        balances = {bal['asset']: float(bal['free']) for bal in account_info['balances']}
+        print("Available balances:", balances)
+        send_ntfy_notification(f"Balances: {balances}")
+        exchange_info = client.get_exchange_info()
+        bnb_usd_symbols = [s['symbol'] for s in exchange_info['symbols'] if 'BNB' in s['symbol'] and 'USD' in s['symbol']]
+        print("BNB/USD-like symbols:", bnb_usd_symbols)
+        send_ntfy_notification(f"BNB/USD-like symbols: {bnb_usd_symbols}")
+        sys.exit()
+    except Exception as e:
+        print(f"Error fetching balances or symbols: {e}")
+        send_ntfy_notification(f"Error fetching balances or symbols: {e}")
+        sys.exit()
 
     symbol = "BNBUSD"
     print("Bot starting...")
