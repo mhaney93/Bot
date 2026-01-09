@@ -78,8 +78,10 @@ def bid_chaser():
                         send_ntfy_notification("Position entered.")
                         filled_order = order
                         return order
-                    # If our bid is more than $0.01 above the next highest, cancel and rebid
-                    if next_highest_bid is not None and my_price > next_highest_bid + 0.011:
+                    # If outbid or stale, cancel and rebid
+                    target_price = round(next_highest_bid + 0.01, 2) if next_highest_bid is not None else None
+                    if (next_highest_bid is not None and (
+                        my_price < target_price - 0.0001 or my_price > target_price + 0.0001)):
                         cancel_order(order_id)
                         # Fetch latest balance before rebidding
                         try:
