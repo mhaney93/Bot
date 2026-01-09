@@ -49,8 +49,17 @@ if __name__ == "__main__":
         usd_balance = 0
 
     def log_status():
-        # Placeholder for actual status info
-        logging.info(f"Bot running. USD balance: {usd_balance}")
+        # Log current status: USD balance, open orders, and best bid
+        try:
+            balances = exchange.fetch_balance()
+            usd = balances['total'].get('USD', 0)
+            if usd == 0:
+                usd = balances['total'].get('USD4', 0)
+            open_orders = exchange.fetch_open_orders(symbol)
+            best_bid = get_best_bid()
+            logging.info(f"Status: USD balance: {usd}, Open orders: {len(open_orders)}, Best bid: {best_bid}")
+        except Exception as e:
+            logging.error(f"Error in log_status: {e}")
 
     # --- Bid Chase Logic ---
     bid_order_id = None
