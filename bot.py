@@ -33,7 +33,11 @@ def bid_chaser():
 
     global filled_order
     notified_no_balance = False
-    last_distinct_price = None
+    # Use same price change logic as logger
+    if not hasattr(bid_chaser, 'last_distinct_price'):
+        bid_chaser.last_distinct_price = None
+    if not hasattr(bid_chaser, 'last_nonzero_price_change'):
+        bid_chaser.last_nonzero_price_change = 0.0
     while True:
         try:
             balances = exchange.fetch_balance()
@@ -44,7 +48,6 @@ def bid_chaser():
             logging.error(f"Error fetching account info in bid_chaser: {e}")
             usd_balance = 0
         order_book = exchange.fetch_order_book(symbol)
-        # Get current price from order book (best ask)
         current_price = float(order_book['asks'][0][0]) if order_book['asks'] else None
         # Cumulate asks up to 90% of USD balance
         asks = order_book['asks']
@@ -64,7 +67,6 @@ def bid_chaser():
             weighted_ask_sum += price * usd_val
             if cum_usd >= max_usd:
                 break
-        # No $50 minimum requirement, so skip this check
         weighted_ask = weighted_ask_sum / cum_usd if cum_usd > 0 else None
         # Cumulate bids until quantity covers cum_qty
         bids = order_book['bids']
@@ -87,30 +89,30 @@ def bid_chaser():
         weighted_bid = weighted_bid_sum / bid_cum_qty if bid_cum_qty > 0 else None
         spread_pct = ((weighted_ask - weighted_bid) / weighted_ask) * 100 if weighted_ask and weighted_bid else None
 
-        # --- Distinct price logic ---
-        if last_distinct_price is None:
-            last_distinct_price = current_price
-        elif current_price != last_distinct_price:
-            if current_price > last_distinct_price:
-                # Place market buy if spread <= 0.1% (no $50 minimum)
-                if spread_pct is not None and spread_pct <= 0.1:
-                    try:
-                        order = exchange.create_market_buy_order(symbol, round(cum_qty, 3))
-                        entry_price = float(order['average']) if 'average' in order else weighted_ask
-                        qty = round(cum_qty, 3)
-                        positions.append({'price': entry_price, 'qty': qty})
-                        usd_val = entry_price * qty
-                        spread_pct_entry = ((weighted_ask - weighted_bid) / weighted_ask) * 100 if weighted_ask and weighted_bid else None
-                        log_msg = f"Position entered: entry={entry_price}, ${usd_val:.2f}, weighted_bid={weighted_bid:.4f}, weighted_ask={weighted_ask:.4f}, spread={spread_pct_entry:.4f}%"
-                        logging.info(log_msg)
-                        print(log_msg)
-                        send_ntfy_notification(log_msg)
-                    except Exception as e:
-                        logging.error(f"Error placing market buy: {e}")
-                last_distinct_price = current_price
-            else:
-                last_distinct_price = current_price
-        # Remove historical order tracking to avoid duplicate positions
+        # --- Price change logic ---
+        price_change = 0.0
+        if bid_chaser.last_distinct_price is None:
+            bid_chaser.last_distinct_price = current_price
+        elif current_price != bid_chaser.last_distinct_price:
+            price_change = current_price - bid_chaser.last_distinct_price
+            bid_chaser.last_distinct_price = current_price
+            if price_change != 0.0:
+                bid_chaser.last_nonzero_price_change = price_change
+        # Buy condition: last non-zero price change > 0 and spread < 0.1%
+        if bid_chaser.last_nonzero_price_change > 0 and spread_pct is not None and spread_pct < 0.1:
+            try:
+                order = exchange.create_market_buy_order(symbol, round(cum_qty, 3))
+                entry_price = float(order['average']) if 'average' in order else weighted_ask
+                qty = round(cum_qty, 3)
+                positions.append({'price': entry_price, 'qty': qty})
+                usd_val = entry_price * qty
+                spread_pct_entry = ((weighted_ask - weighted_bid) / weighted_ask) * 100 if weighted_ask and weighted_bid else None
+                log_msg = f"Position entered: entry={entry_price}, ${usd_val:.2f}, weighted_bid={weighted_bid:.4f}, weighted_ask={weighted_ask:.4f}, spread={spread_pct_entry:.4f}%"
+                logging.info(log_msg)
+                print(log_msg)
+                send_ntfy_notification(log_msg)
+            except Exception as e:
+                logging.error(f"Error placing market buy: {e}")
         time.sleep(1)
     return None
 
