@@ -91,17 +91,7 @@ def bid_chaser():
                 logging.info(f"Market buy executed: entry={entry_price}, qty={round(cum_qty, 3)}")
             except Exception as e:
                 logging.error(f"Error placing market buy: {e}")
-        # Track recently filled orders as before
-        recent_orders = exchange.fetch_orders(symbol)
-        for order in recent_orders:
-            if order['side'].upper() == 'BUY' and order['status'].lower() in ('closed', 'filled'):
-                entry_price = float(order['price'])
-                filled_amt = float(order.get('filled', 0))
-                order_id = order['id']
-                already_tracked = any(abs(p['price'] - entry_price) < 0.0001 and abs(p['qty'] - filled_amt) < 0.0001 for p in positions)
-                if not already_tracked and filled_amt > 0:
-                    positions.append({'price': entry_price, 'qty': filled_amt, 'order_id': order_id})
-                    logging.info(f"Position tracked: entry={entry_price}, qty={filled_amt}")
+        # Remove historical order tracking to avoid duplicate positions
         time.sleep(1)
     return None
 
