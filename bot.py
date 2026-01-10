@@ -246,7 +246,8 @@ if __name__ == "__main__":
                 if current_price is not None:
                     if current_price != log_status.last_distinct_price:
                         price_change = current_price - log_status.last_distinct_price
-                        price_change_str = f" price change: {price_change:.2f}"
+                        sign = '+' if price_change > 0 else ''
+                        price_change_str = f" price change: {sign}{price_change:.2f}"
                         log_status.last_distinct_price = current_price
                     else:
                         price_change_str = f" price change: 0.00"
