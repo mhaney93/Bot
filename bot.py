@@ -244,10 +244,10 @@ if __name__ == "__main__":
                 if current_price is not None:
                     if current_price != log_status.last_distinct_price:
                         price_change = current_price - log_status.last_distinct_price
-                        price_change_str = f" | Price change since last distinct: {price_change:.4f}"
+                        price_change_str = f" price change: {price_change:.4f}"
                         log_status.last_distinct_price = current_price
                     else:
-                        price_change_str = f" | Price change since last distinct: 0.0000"
+                        price_change_str = f" price change: 0.0000"
                 if weighted_bid is not None and weighted_ask is not None and spread_pct is not None:
                     market_info = f"USD: ${usd_balance:.2f}, Weighted bid: {weighted_bid:.4f}, Weighted ask: {weighted_ask:.4f}, Spread: {spread_pct:.4f}%{price_change_str}"
                 else:
