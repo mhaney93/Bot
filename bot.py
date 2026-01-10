@@ -61,7 +61,7 @@ def bid_chaser():
         # If no open bid, place one
         if not my_bid_order:
             if next_highest_bid is None:
-                time.sleep(3)
+                time.sleep(1)
                 continue
             target_price = round(next_highest_bid + 0.01, 2)
             qty = round((usd_balance * 0.9) / target_price, 3) if target_price > 0 else 0
@@ -75,10 +75,7 @@ def bid_chaser():
             time.sleep(1)
             continue
         target_price = round(next_highest_bid + 0.01, 2)
-        # Debug print
-        print(f"[DEBUG] my_price: {my_price}, next_highest_bid: {next_highest_bid}, target_price: {target_price}")
         if (my_price < target_price - 0.0001 or my_price > target_price + 0.0001):
-            print(f"[DEBUG] Cancelling and rebidding: my_price={my_price}, target_price={target_price}")
             cancel_order(my_bid_order['id'])
             # Fetch latest balance before rebidding
             try:
@@ -90,7 +87,7 @@ def bid_chaser():
                 logging.error(f"Error fetching account info in chase_bid: {e}")
                 usd_balance = 0
             place_maker_bid(usd_balance, suppress_insufficient=True)
-            time.sleep(3)
+            time.sleep(1)
             continue
         # Check if our order is filled or partially filled
         try:
@@ -167,16 +164,14 @@ if __name__ == "__main__":
                     next_highest_bid = bid_price
                     break
                 lowest_ask = float(order_book['asks'][0][0]) if order_book['asks'] else None
-                # Position info: show all tracked positions
+                # Position info: show entry price and current thresholds for each position
                 positions_info = ''
                 if positions:
                     positions_info = ' | Positions: '
                     pos_strs = []
                     for i, pos in enumerate(positions, 1):
                         entry_price = pos['price']
-                        qty = pos['qty']
-                        usd_val = entry_price * qty
-                        pos_strs.append(f"[{i}] entry={entry_price}, qty={qty}, usd=${usd_val:.2f}")
+                        pos_strs.append(f"[{i}] entry={entry_price}, next_highest={next_highest_bid}, lowest_ask={lowest_ask}")
                     positions_info += '; '.join(pos_strs)
                 else:
                     positions_info = ' | Positions: None'
