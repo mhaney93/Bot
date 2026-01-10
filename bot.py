@@ -213,10 +213,14 @@ if __name__ == "__main__":
                                 order = exchange.create_market_sell_order(symbol, qty)
                                 exit_price = float(order['average']) if 'average' in order else highest_covering_bid
                                 usd_val = exit_price * qty
-                                log_msg = f"Position exited: exit={exit_price}, ${usd_val:.2f}, highest_bid={highest_covering_bid}"
+                                # Calculate profit/loss
+                                profit_loss = exit_price * qty - pos['price'] * qty
+                                profit_loss_pct = ((exit_price - pos['price']) / pos['price']) * 100
+                                log_msg = f"Position exited: exit={exit_price}, ${usd_val:.2f}, highest_bid={highest_covering_bid}, P/L=${profit_loss:.2f} ({profit_loss_pct:.2f}%)"
                                 logging.info(log_msg)
                                 print(log_msg)
-                                send_ntfy_notification(f"Position exited: exit={exit_price}, ${usd_val:.2f}, highest_bid={highest_covering_bid}")
+                                ntfy_msg = f"Position exited: P/L ${profit_loss:.2f} ({profit_loss_pct:.2f}%)"
+                                send_ntfy_notification(ntfy_msg)
                                 positions.remove(pos)
                             except Exception as e:
                                 logging.error(f"Error placing market sell: {e}")
