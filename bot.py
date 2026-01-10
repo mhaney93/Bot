@@ -94,8 +94,9 @@ def bid_chaser():
                 print(f"Position entered: entry={entry_price}, ${usd_val:.2f}, weighted_bid={weighted_bid:.4f}, weighted_ask={weighted_ask:.4f}")
                 # Only log the entry with the spread percent
                 spread_pct_entry = ((weighted_ask - weighted_bid) / weighted_ask) * 100 if weighted_ask and weighted_bid else None
-                logging.info(f"Position entered: entry={entry_price}, ${usd_val:.2f}, weighted_bid={weighted_bid:.4f}, weighted_ask={weighted_ask:.4f}, spread={spread_pct_entry:.4f}%")
-                print(f"Position entered: entry={entry_price}, ${usd_val:.2f}, weighted_bid={weighted_bid:.4f}, weighted_ask={weighted_ask:.4f}, spread={spread_pct_entry:.4f}%")
+                log_msg = f"Position entered: entry={entry_price}, ${usd_val:.2f}, weighted_bid={weighted_bid:.4f}, weighted_ask={weighted_ask:.4f}, spread={spread_pct_entry:.4f}%"
+                logging.info(log_msg)
+                print(log_msg)
                 logging.info(f"Market buy executed: entry={entry_price}, qty={qty}")
             except Exception as e:
                 logging.error(f"Error placing market buy: {e}")
