@@ -87,8 +87,12 @@ def bid_chaser():
             try:
                 order = exchange.create_market_buy_order(symbol, round(cum_qty, 3))
                 entry_price = float(order['average']) if 'average' in order else weighted_ask
-                positions.append({'price': entry_price, 'qty': round(cum_qty, 3)})
-                logging.info(f"Market buy executed: entry={entry_price}, qty={round(cum_qty, 3)}")
+                qty = round(cum_qty, 3)
+                positions.append({'price': entry_price, 'qty': qty})
+                usd_val = entry_price * qty
+                logging.info(f"Position entered: entry={entry_price}, ${usd_val:.2f}, weighted_bid={weighted_bid:.4f}, weighted_ask={weighted_ask:.4f}")
+                print(f"Position entered: entry={entry_price}, ${usd_val:.2f}, weighted_bid={weighted_bid:.4f}, weighted_ask={weighted_ask:.4f}")
+                logging.info(f"Market buy executed: entry={entry_price}, qty={qty}")
             except Exception as e:
                 logging.error(f"Error placing market buy: {e}")
         # Remove historical order tracking to avoid duplicate positions
@@ -197,7 +201,7 @@ if __name__ == "__main__":
                             threshold = entry_price * (1 + ratchet_step * ratchet_level)
                             next_ratchet = entry_price * (1 + ratchet_step * (ratchet_level + 1))
                         # Show in logger
-                        pos_strs.append(f"[{i}] entry={entry_price}, $usd={usd_val:.2f}, highest_covering_bid={highest_covering_bid}, lower_threshold={threshold:.4f}, upper_threshold={next_ratchet:.4f}")
+                        pos_strs.append(f"[{i}] entry={entry_price}, ${usd_val:.2f}, highest_covering_bid={highest_covering_bid}, floor={threshold:.4f}, ceiling={next_ratchet:.4f}")
                         # Execute market sell if needed
                         if highest_covering_bid and highest_covering_bid <= threshold:
                             try:
