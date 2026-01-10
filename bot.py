@@ -195,25 +195,29 @@ if __name__ == "__main__":
                             if bid_qty >= qty:
                                 highest_covering_bid = bid_price
                                 break
-                        # Ratcheting logic
+                        # Ratcheting logic: floor only ratchets up, never down
                         ratchet_step = 0.001  # 0.1%
-                        ratchet_level = 0
-                        threshold = entry_price * (1 - 0.002)  # initial: entry - 0.2%
-                        next_ratchet = entry_price * (1 + ratchet_step)
-                        while highest_covering_bid and highest_covering_bid > next_ratchet:
-                            ratchet_level += 1
-                            threshold = entry_price * (1 + ratchet_step * ratchet_level)
-                            next_ratchet = entry_price * (1 + ratchet_step * (ratchet_level + 1))
-                        # Show in logger
-                        pos_strs.append(f"[{i}] entry={entry_price}, ${usd_val:.2f}, highest_covering_bid={highest_covering_bid}, floor={threshold:.4f}, ceiling={next_ratchet:.4f}")
+                        if 'ratchet_level' not in pos:
+                            pos['ratchet_level'] = 0
+                        if 'floor' not in pos:
+                            pos['floor'] = entry_price * (1 - 0.002)
+                        if 'ceiling' not in pos:
+                            pos['ceiling'] = entry_price * (1 + ratchet_step)
+                        # Move up ratchet if highest_covering_bid exceeds current ceiling
+                        while highest_covering_bid and highest_covering_bid > pos['ceiling']:
+                            pos['ratchet_level'] += 1
+                            pos['floor'] = entry_price * (1 + ratchet_step * pos['ratchet_level'])
+                            pos['ceiling'] = entry_price * (1 + ratchet_step * (pos['ratchet_level'] + 1))
+                        # Floor never decreases
                         # Execute market sell if needed
-                        if highest_covering_bid and highest_covering_bid <= threshold:
+                        if highest_covering_bid and highest_covering_bid <= pos['floor']:
                             try:
                                 order = exchange.create_market_sell_order(symbol, qty)
                                 logging.info(f"Market sell executed: exit={highest_covering_bid}, qty={qty}")
                                 positions.remove(pos)
                             except Exception as e:
                                 logging.error(f"Error placing market sell: {e}")
+                        pos_strs.append(f"[{i}] entry={entry_price}, ${usd_val:.2f}, highest_covering_bid={highest_covering_bid}, floor={pos['floor']:.4f}, ceiling={pos['ceiling']:.4f}")
                     positions_info += '; '.join(pos_strs)
                 else:
                     positions_info = ' | Positions: None'
