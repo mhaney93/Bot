@@ -191,6 +191,14 @@ if __name__ == "__main__":
                     positions_info += '; '.join(pos_strs)
                 else:
                     positions_info = ' | Positions: None'
+                # If no open bid, log 'Open bid: None' and skip other market info
+                if open_bid_price is None:
+                    msg = f"{now}: Open bid: None{positions_info}"
+                    print(msg)
+                    logging.info(msg)
+                    for handler in logging.getLogger().handlers:
+                        handler.flush()
+                    return
                 usd_value_str = f"{open_bid_value:.2f}" if open_bid_value is not None else "None"
                 msg = f"{now}: Open bid: ${usd_value_str}, {open_bid_price}, Next highest: {next_highest_bid}, Lowest ask: {lowest_ask}{positions_info}"
                 print(msg)
