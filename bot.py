@@ -128,6 +128,11 @@ if __name__ == "__main__":
             try:
                 now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 order_book = exchange.fetch_order_book(symbol)
+                # Get USD balance
+                balances = exchange.fetch_balance()
+                usd_balance = balances['total'].get('USD', 0)
+                if usd_balance == 0:
+                    usd_balance = balances['total'].get('USD4', 0)
                 # Cumulate asks
                 asks = order_book['asks']
                 cum_qty = 0
@@ -162,16 +167,18 @@ if __name__ == "__main__":
                 spread_pct = ((weighted_ask - weighted_bid) / weighted_ask) * 100 if weighted_ask and weighted_bid else None
                 # Logger output for market info
                 if weighted_bid is not None and weighted_ask is not None and spread_pct is not None:
-                    market_info = f"Weighted bid: {weighted_bid:.4f}, Weighted ask: {weighted_ask:.4f}, Spread: {spread_pct:.4f}%"
+                    market_info = f"USD balance: ${usd_balance:.2f}, Weighted bid: {weighted_bid:.4f}, Weighted ask: {weighted_ask:.4f}, Spread: {spread_pct:.4f}%"
                 else:
-                    market_info = "Market info unavailable"
-                # Position info: show entry price, highest covering bid, and current thresholds for each position
+                    market_info = f"USD balance: ${usd_balance:.2f}, Market info unavailable"
+                # Position info: show entry price, USD value, highest covering bid, and current thresholds for each position
                 positions_info = ''
                 if positions:
                     positions_info = ' | Positions: '
                     pos_strs = []
                     for i, pos in enumerate(positions, 1):
                         entry_price = pos['price']
+                        qty = pos['qty']
+                        usd_val = entry_price * qty
                         lower_threshold = round(entry_price * 0.998, 4)  # -0.2%
                         upper_threshold = pos.get('upper_threshold', round(entry_price * 1.001, 4))  # +0.1%
                         # Find the highest open bid that can cover the position
@@ -179,13 +186,13 @@ if __name__ == "__main__":
                         for bid in order_book['bids']:
                             bid_price = float(bid[0])
                             bid_qty = float(bid[1])
-                            if bid_qty >= pos['qty']:
+                            if bid_qty >= qty:
                                 highest_covering_bid = bid_price
                                 break
                         if highest_covering_bid and highest_covering_bid > upper_threshold:
                             upper_threshold = highest_covering_bid
                             pos['upper_threshold'] = upper_threshold
-                        pos_strs.append(f"[{i}] entry={entry_price}, highest_covering_bid={highest_covering_bid}, lower={lower_threshold}, upper={upper_threshold}")
+                        pos_strs.append(f"[{i}] entry={entry_price}, $usd={usd_val:.2f}, highest_covering_bid={highest_covering_bid}, lower={lower_threshold}, upper={upper_threshold}")
                     positions_info += '; '.join(pos_strs)
                 else:
                     positions_info = ' | Positions: None'
