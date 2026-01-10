@@ -179,8 +179,6 @@ if __name__ == "__main__":
                         entry_price = pos['price']
                         qty = pos['qty']
                         usd_val = entry_price * qty
-                        lower_threshold = round(entry_price * 0.998, 4)  # -0.2%
-                        upper_threshold = pos.get('upper_threshold', round(entry_price * 1.001, 4))  # +0.1%
                         # Find the highest open bid that can cover the position
                         highest_covering_bid = None
                         for bid in order_book['bids']:
@@ -189,10 +187,25 @@ if __name__ == "__main__":
                             if bid_qty >= qty:
                                 highest_covering_bid = bid_price
                                 break
-                        if highest_covering_bid and highest_covering_bid > upper_threshold:
-                            upper_threshold = highest_covering_bid
-                            pos['upper_threshold'] = upper_threshold
-                        pos_strs.append(f"[{i}] entry={entry_price}, $usd={usd_val:.2f}, highest_covering_bid={highest_covering_bid}, lower={lower_threshold}, upper={upper_threshold}")
+                        # Ratcheting logic
+                        ratchet_step = 0.001  # 0.1%
+                        ratchet_level = 0
+                        threshold = entry_price * (1 - 0.002)  # initial: entry - 0.2%
+                        next_ratchet = entry_price * (1 + ratchet_step)
+                        while highest_covering_bid and highest_covering_bid > next_ratchet:
+                            ratchet_level += 1
+                            threshold = entry_price * (1 + ratchet_step * ratchet_level)
+                            next_ratchet = entry_price * (1 + ratchet_step * (ratchet_level + 1))
+                        # Show in logger
+                        pos_strs.append(f"[{i}] entry={entry_price}, $usd={usd_val:.2f}, highest_covering_bid={highest_covering_bid}, lower_threshold={threshold:.4f}, upper_threshold={next_ratchet:.4f}")
+                        # Execute market sell if needed
+                        if highest_covering_bid and highest_covering_bid <= threshold:
+                            try:
+                                order = exchange.create_market_sell_order(symbol, qty)
+                                logging.info(f"Market sell executed: exit={highest_covering_bid}, qty={qty}")
+                                positions.remove(pos)
+                            except Exception as e:
+                                logging.error(f"Error placing market sell: {e}")
                     positions_info += '; '.join(pos_strs)
                 else:
                     positions_info = ' | Positions: None'
