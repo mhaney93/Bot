@@ -211,11 +211,16 @@ if __name__ == "__main__":
                         if highest_covering_bid and highest_covering_bid <= pos['floor']:
                             try:
                                 order = exchange.create_market_sell_order(symbol, qty)
-                                logging.info(f"Market sell executed: exit={highest_covering_bid}, qty={qty}")
+                                exit_price = float(order['average']) if 'average' in order else highest_covering_bid
+                                usd_val = exit_price * qty
+                                log_msg = f"Position exited: exit={exit_price}, ${usd_val:.2f}, highest_bid={highest_covering_bid}"
+                                logging.info(log_msg)
+                                print(log_msg)
+                                send_ntfy_notification(f"Position exited: exit={exit_price}, ${usd_val:.2f}, highest_bid={highest_covering_bid}")
                                 positions.remove(pos)
                             except Exception as e:
                                 logging.error(f"Error placing market sell: {e}")
-                        pos_strs.append(f"[{i}] entry={entry_price}, ${usd_val:.2f}, highest_covering_bid={highest_covering_bid}, floor={pos['floor']:.4f}, ceiling={pos['ceiling']:.4f}")
+                        pos_strs.append(f"[{i}] entry={entry_price}, ${usd_val:.2f}, highest_bid={highest_covering_bid}, floor={pos['floor']:.4f}, ceiling={pos['ceiling']:.4f}")
                     positions_info += '; '.join(pos_strs)
                 else:
                     positions_info = ' | Positions: None'
