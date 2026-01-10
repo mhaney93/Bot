@@ -226,37 +226,6 @@ if __name__ == "__main__":
             except Exception as e:
                 logging.error(f"Error cancelling order: {e}")
 
-        def place_maker_bid(usd_balance, suppress_insufficient=False):
-            best_bid = get_best_bid()
-            order_book = exchange.fetch_order_book(symbol)
-            if not best_bid or not order_book['asks']:
-                logging.error("No best bid or ask found.")
-                return None
-            lowest_ask = float(order_book['asks'][0][0])
-            tick_size = 0.01
-            # Only place a bid if it will NOT cross the spread (maker only)
-            price = round(min(best_bid + tick_size, lowest_ask - tick_size), 2)
-            if price >= lowest_ask:
-                logging.warning(f"Maker bid would cross the spread (price={price} >= lowest_ask={lowest_ask}), skipping bid.")
-                return None
-            qty = round((usd_balance * 0.9) / price, 3)
-            if qty <= 0:
-                msg = f"Insufficient USD balance to place a bid. USD balance: {usd_balance}"
-                logging.warning(msg)
-                if not suppress_insufficient:
-                    send_ntfy_notification(msg)
-                return None
-            try:
-                order = exchange.create_limit_buy_order(symbol, qty, price)
-                logging.info(f"Placed maker bid: qty={qty}, price={price}")
-                # No notification for placing a bid
-                return order['id']
-            except Exception as e:
-                logging.error(f"Error placing maker bid: {e}")
-                if not suppress_insufficient:
-                    send_ntfy_notification(f"Error placing maker bid: {e}")
-                return None
-
         # Place initial bid
         if usd_balance <= 0:
             msg = f"No USD balance available to place a bid. USD balance: {usd_balance}"
