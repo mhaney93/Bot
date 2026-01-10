@@ -243,18 +243,22 @@ if __name__ == "__main__":
                 if not hasattr(log_status, 'last_distinct_price'):
                     log_status.last_distinct_price = current_price
                 price_change_str = ''
+                latest_price_change = 0.00
+                if not hasattr(log_status, 'latest_price_change'):
+                    log_status.latest_price_change = 0.00
                 if current_price is not None:
                     if current_price != log_status.last_distinct_price:
-                        price_change = current_price - log_status.last_distinct_price
-                        sign = '+' if price_change > 0 else ''
-                        price_change_str = f" price change: {sign}{price_change:.2f}"
+                        latest_price_change = current_price - log_status.last_distinct_price
+                        log_status.latest_price_change = latest_price_change
                         log_status.last_distinct_price = current_price
                     else:
-                        price_change_str = f" price change: 0.00"
+                        latest_price_change = log_status.latest_price_change
+                sign = '+' if latest_price_change > 0 else ''
+                price_change_str = f" price change: {sign}{latest_price_change:.2f}"
                 if weighted_bid is not None and weighted_ask is not None and spread_pct is not None:
-                    market_info = f"USD: ${usd_balance:.2f}, Weighted bid: {weighted_bid:.2f}, Weighted ask: {weighted_ask:.2f}, Spread: {spread_pct:.2f}%{price_change_str}"
+                    market_info = f"${usd_balance:.2f}, bid: {weighted_bid:.2f}, ask: {weighted_ask:.2f}, Spread: {spread_pct:.2f}%{price_change_str}"
                 else:
-                    market_info = f"USD: ${usd_balance:.2f}, Market info unavailable{price_change_str}"
+                    market_info = f"${usd_balance:.2f}, Market info unavailable{price_change_str}"
                 # --- Combine all positions into one weighted position if >=2 ---
                 positions_info = ''
                 if positions:
