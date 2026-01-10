@@ -246,12 +246,12 @@ if __name__ == "__main__":
                 if current_price is not None:
                     if current_price != log_status.last_distinct_price:
                         price_change = current_price - log_status.last_distinct_price
-                        price_change_str = f" price change: {price_change:.4f}"
+                        price_change_str = f" price change: {price_change:.2f}"
                         log_status.last_distinct_price = current_price
                     else:
-                        price_change_str = f" price change: 0.0000"
+                        price_change_str = f" price change: 0.00"
                 if weighted_bid is not None and weighted_ask is not None and spread_pct is not None:
-                    market_info = f"USD: ${usd_balance:.2f}, Weighted bid: {weighted_bid:.4f}, Weighted ask: {weighted_ask:.4f}, Spread: {spread_pct:.4f}%{price_change_str}"
+                    market_info = f"USD: ${usd_balance:.2f}, Weighted bid: {weighted_bid:.2f}, Weighted ask: {weighted_ask:.2f}, Spread: {spread_pct:.2f}%{price_change_str}"
                 else:
                     market_info = f"USD: ${usd_balance:.2f}, Market info unavailable{price_change_str}"
                 # --- Combine all positions into one weighted position if >=2 ---
@@ -323,7 +323,7 @@ if __name__ == "__main__":
                             positions.clear()
                         except Exception as e:
                             logging.error(f"Error placing market sell: {e}")
-                    positions_info = f" | Position: entry={entry_price}, ${usd_val:.2f}, highest_bid={highest_covering_bid}, floor={pos['floor']:.4f}, ceiling={pos['ceiling']:.4f}"
+                    positions_info = f" | Position: entry={entry_price:.2f}, ${usd_val:.2f}, highest_bid={highest_covering_bid:.2f}, floor={pos['floor']:.2f}, ceiling={pos['ceiling']:.2f}"
                 else:
                     positions_info = ' | Positions: None'
                 msg = f"{now}: {market_info}{positions_info}"
