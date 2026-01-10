@@ -236,10 +236,22 @@ if __name__ == "__main__":
                 weighted_bid = weighted_bid_sum / bid_cum_qty if bid_cum_qty > 0 else None
                 spread_pct = ((weighted_ask - weighted_bid) / weighted_ask) * 100 if weighted_ask and weighted_bid else None
                 # Logger output for market info
+                # Track current price and last distinct price
+                current_price = float(order_book['asks'][0][0]) if order_book['asks'] else None
+                if not hasattr(log_status, 'last_distinct_price'):
+                    log_status.last_distinct_price = current_price
+                price_change_str = ''
+                if current_price is not None:
+                    if current_price != log_status.last_distinct_price:
+                        price_change = current_price - log_status.last_distinct_price
+                        price_change_str = f" | Price change since last distinct: {price_change:.4f}"
+                        log_status.last_distinct_price = current_price
+                    else:
+                        price_change_str = f" | Price change since last distinct: 0.0000"
                 if weighted_bid is not None and weighted_ask is not None and spread_pct is not None:
-                    market_info = f"USD: ${usd_balance:.2f}, Weighted bid: {weighted_bid:.4f}, Weighted ask: {weighted_ask:.4f}, Spread: {spread_pct:.4f}%"
+                    market_info = f"USD: ${usd_balance:.2f}, Weighted bid: {weighted_bid:.4f}, Weighted ask: {weighted_ask:.4f}, Spread: {spread_pct:.4f}%{price_change_str}"
                 else:
-                    market_info = f"USD: ${usd_balance:.2f}, Market info unavailable"
+                    market_info = f"USD: ${usd_balance:.2f}, Market info unavailable{price_change_str}"
                 # --- Combine all positions into one weighted position if >=2 ---
                 positions_info = ''
                 if positions:
