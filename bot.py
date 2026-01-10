@@ -110,7 +110,6 @@ def bid_chaser():
                 log_msg = f"Position entered: entry={entry_price}, ${usd_val:.2f}, weighted_bid={weighted_bid:.4f}, weighted_ask={weighted_ask:.4f}, spread={spread_pct_entry:.4f}%"
                 logging.info(log_msg)
                 print(log_msg)
-                send_ntfy_notification(log_msg)
             except Exception as e:
                 logging.error(f"Error placing market buy: {e}")
         time.sleep(1)
@@ -152,8 +151,9 @@ def should_send_24h_update():
     flag_file = os.path.join(os.path.dirname(__file__), 'last_24h_update.txt')
     now = datetime.datetime.now()
     today_8am = now.replace(hour=8, minute=0, second=0, microsecond=0)
-    if now < today_8am:
-        today_8am -= datetime.timedelta(days=1)
+    # Only allow sending between 8:00:00 and 8:00:59
+    if not (now.hour == 8 and now.minute == 0):
+        return False
     # Check last sent time
     if os.path.exists(flag_file):
         with open(flag_file, 'r') as f:
