@@ -167,9 +167,9 @@ if __name__ == "__main__":
                 spread_pct = ((weighted_ask - weighted_bid) / weighted_ask) * 100 if weighted_ask and weighted_bid else None
                 # Logger output for market info
                 if weighted_bid is not None and weighted_ask is not None and spread_pct is not None:
-                    market_info = f"USD balance: ${usd_balance:.2f}, Weighted bid: {weighted_bid:.4f}, Weighted ask: {weighted_ask:.4f}, Spread: {spread_pct:.4f}%"
+                    market_info = f"USD: ${usd_balance:.2f}, Weighted bid: {weighted_bid:.4f}, Weighted ask: {weighted_ask:.4f}, Spread: {spread_pct:.4f}%"
                 else:
-                    market_info = f"USD balance: ${usd_balance:.2f}, Market info unavailable"
+                    market_info = f"USD: ${usd_balance:.2f}, Market info unavailable"
                 # Position info: show entry price, USD value, highest covering bid, and current thresholds for each position
                 positions_info = ''
                 if positions:
