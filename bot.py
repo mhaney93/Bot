@@ -164,14 +164,30 @@ if __name__ == "__main__":
                     next_highest_bid = bid_price
                     break
                 lowest_ask = float(order_book['asks'][0][0]) if order_book['asks'] else None
-                # Position info: show entry price and current thresholds for each position
+                # Position info: show entry price, highest covering bid, and current thresholds for each position
                 positions_info = ''
                 if positions:
                     positions_info = ' | Positions: '
                     pos_strs = []
                     for i, pos in enumerate(positions, 1):
                         entry_price = pos['price']
-                        pos_strs.append(f"[{i}] entry={entry_price}, next_highest={next_highest_bid}, lowest_ask={lowest_ask}")
+                        # Calculate thresholds
+                        lower_threshold = round(entry_price * 0.998, 4)  # -0.2%
+                        upper_threshold = pos.get('upper_threshold', round(entry_price * 1.001, 4))  # +0.1%
+                        # Find the highest open bid that can cover the position
+                        highest_bid = None
+                        order_book = exchange.fetch_order_book(symbol)
+                        for bid in order_book['bids']:
+                            bid_price = float(bid[0])
+                            bid_qty = float(bid[1])
+                            if bid_qty >= pos['qty']:
+                                highest_bid = bid_price
+                                break
+                        # Ratchet up upper threshold if highest_bid exceeds it
+                        if highest_bid and highest_bid > upper_threshold:
+                            upper_threshold = highest_bid
+                            pos['upper_threshold'] = upper_threshold
+                        pos_strs.append(f"[{i}] entry={entry_price}, highest_covering_bid={highest_bid}, lower={lower_threshold}, upper={upper_threshold}")
                     positions_info += '; '.join(pos_strs)
                 else:
                     positions_info = ' | Positions: None'
