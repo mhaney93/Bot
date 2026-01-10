@@ -31,7 +31,6 @@ def bid_chaser():
     global filled_order
     notified_no_balance = False
     while True:
-        # Always fetch the latest USD balance
         try:
             balances = exchange.fetch_balance()
             usd_balance = balances['total'].get('USD', 0)
@@ -40,75 +39,69 @@ def bid_chaser():
         except Exception as e:
             logging.error(f"Error fetching account info in bid_chaser: {e}")
             usd_balance = 0
-        # Always fetch your current open buy order (if any)
-        open_orders = exchange.fetch_open_orders(symbol)
-        my_bid_order = None
-        for order in open_orders:
-            if order['side'].upper() == 'BUY' and order['status'] in ('open', 'new'):
-                my_bid_order = order
-                break
-        # Always define next_highest_bid
-        next_highest_bid = None
         order_book = exchange.fetch_order_book(symbol)
-        if order_book['bids']:
-            import math
-            for bid in order_book['bids']:
-                bid_price = float(bid[0])
-                if my_bid_order and math.isclose(bid_price, float(my_bid_order['price']), abs_tol=0.0001):
-                    continue  # skip our own bid
-                next_highest_bid = bid_price
+        # Cumulate asks until at least $50 or 90% of USD balance
+        asks = order_book['asks']
+        cum_qty = 0
+        cum_usd = 0
+        weighted_ask_sum = 0
+        max_usd = min(usd_balance * 0.9, usd_balance)
+        for price, qty in asks:
+            price = float(price)
+            qty = float(qty)
+            usd_val = price * qty
+            if cum_usd + usd_val > max_usd:
+                qty = (max_usd - cum_usd) / price
+                usd_val = price * qty
+            cum_qty += qty
+            cum_usd += usd_val
+            weighted_ask_sum += price * usd_val
+            if cum_usd >= 50:
                 break
-        # If no open bid, place one
-        if not my_bid_order:
-            if next_highest_bid is None:
-                time.sleep(1)
-                continue
-            target_price = round(next_highest_bid + 0.01, 2)
-            qty = round((usd_balance * 0.9) / target_price, 3) if target_price > 0 else 0
-            if qty > 0:
-                place_maker_bid(usd_balance, suppress_insufficient=True)
+        if cum_usd < 50:
             time.sleep(1)
             continue
-        # If we have an open bid, check if it's stale or outbid
-        my_price = float(my_bid_order['price'])
-        if next_highest_bid is None:
+        weighted_ask = weighted_ask_sum / cum_usd if cum_usd > 0 else None
+        # Cumulate bids until quantity covers cum_qty
+        bids = order_book['bids']
+        bid_cum_qty = 0
+        bid_cum_usd = 0
+        weighted_bid_sum = 0
+        for price, qty in bids:
+            price = float(price)
+            qty = float(qty)
+            if bid_cum_qty + qty > cum_qty:
+                qty = cum_qty - bid_cum_qty
+            bid_cum_qty += qty
+            bid_cum_usd += price * qty
+            weighted_bid_sum += price * qty
+            if bid_cum_qty >= cum_qty:
+                break
+        if bid_cum_qty < cum_qty:
             time.sleep(1)
             continue
-        target_price = round(next_highest_bid + 0.01, 2)
-        if (my_price < target_price - 0.0001 or my_price > target_price + 0.0001):
-            cancel_order(my_bid_order['id'])
-            # Fetch latest balance before rebidding
+        weighted_bid = weighted_bid_sum / bid_cum_qty if bid_cum_qty > 0 else None
+        spread_pct = ((weighted_ask - weighted_bid) / weighted_ask) * 100 if weighted_ask and weighted_bid else None
+        # Place market buy if spread <= 0.1%
+        if spread_pct is not None and spread_pct <= 0.1 and cum_usd >= 50:
             try:
-                balances = exchange.fetch_balance()
-                usd_balance = balances['total'].get('USD', 0)
-                if usd_balance == 0:
-                    usd_balance = balances['total'].get('USD4', 0)
+                order = exchange.create_market_buy_order(symbol, round(cum_qty, 3))
+                entry_price = float(order['average']) if 'average' in order else weighted_ask
+                positions.append({'price': entry_price, 'qty': round(cum_qty, 3)})
+                logging.info(f"Market buy executed: entry={entry_price}, qty={round(cum_qty, 3)}")
             except Exception as e:
-                logging.error(f"Error fetching account info in chase_bid: {e}")
-                usd_balance = 0
-            place_maker_bid(usd_balance, suppress_insufficient=True)
-            time.sleep(1)
-            continue
-        # Check if our order is filled or partially filled
-        try:
-            order = exchange.fetch_order(my_bid_order['id'], symbol)
-            filled_amt = float(order.get('filled', 0))
-            status = order.get('status', '').lower()
-            # If any portion is filled, track as a position
-            if filled_amt > 0:
+                logging.error(f"Error placing market buy: {e}")
+        # Track recently filled orders as before
+        recent_orders = exchange.fetch_orders(symbol)
+        for order in recent_orders:
+            if order['side'].upper() == 'BUY' and order['status'].lower() in ('closed', 'filled'):
                 entry_price = float(order['price'])
-                # Only add new position if not already tracked
+                filled_amt = float(order.get('filled', 0))
+                order_id = order['id']
                 already_tracked = any(abs(p['price'] - entry_price) < 0.0001 and abs(p['qty'] - filled_amt) < 0.0001 for p in positions)
-                if not already_tracked:
-                    positions.append({'price': entry_price, 'qty': filled_amt})
+                if not already_tracked and filled_amt > 0:
+                    positions.append({'price': entry_price, 'qty': filled_amt, 'order_id': order_id})
                     logging.info(f"Position tracked: entry={entry_price}, qty={filled_amt}")
-            # If order is fully filled, remove/cancel tracking of open bid
-            if status in ('closed', 'filled'):
-                filled_order = order
-                # Instead of return, continue to track new orders/positions
-                continue
-        except Exception as e:
-            logging.error(f"Error checking fill status: {e}")
         time.sleep(1)
     return None
 
@@ -144,26 +137,44 @@ if __name__ == "__main__":
         def log_status():
             try:
                 now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                # Get order book
                 order_book = exchange.fetch_order_book(symbol)
-                # Get your open bid (if any)
-                open_bid_price = None
-                open_bid_value = None
-                open_orders = exchange.fetch_open_orders(symbol)
-                for order in open_orders:
-                    if order['side'].upper() == 'BUY' and order['status'] in ('open', 'new'):
-                        open_bid_price = float(order['price'])
-                        open_bid_value = float(order['amount']) * open_bid_price
+                # Cumulate asks
+                asks = order_book['asks']
+                cum_qty = 0
+                cum_usd = 0
+                weighted_ask_sum = 0
+                for price, qty in asks:
+                    price = float(price)
+                    qty = float(qty)
+                    usd_val = price * qty
+                    cum_qty += qty
+                    cum_usd += usd_val
+                    weighted_ask_sum += price * usd_val
+                    if cum_usd >= 50:
                         break
-                # Find next highest open bid (not your own)
-                next_highest_bid = None
-                for bid in order_book['bids']:
-                    bid_price = float(bid[0])
-                    if open_bid_price is not None and math.isclose(bid_price, open_bid_price, abs_tol=0.0001):
-                        continue  # skip your own bid
-                    next_highest_bid = bid_price
-                    break
-                lowest_ask = float(order_book['asks'][0][0]) if order_book['asks'] else None
+                weighted_ask = weighted_ask_sum / cum_usd if cum_usd > 0 else None
+                # Cumulate bids
+                bids = order_book['bids']
+                bid_cum_qty = 0
+                bid_cum_usd = 0
+                weighted_bid_sum = 0
+                for price, qty in bids:
+                    price = float(price)
+                    qty = float(qty)
+                    if bid_cum_qty + qty > cum_qty:
+                        qty = cum_qty - bid_cum_qty
+                    bid_cum_qty += qty
+                    bid_cum_usd += price * qty
+                    weighted_bid_sum += price * qty
+                    if bid_cum_qty >= cum_qty:
+                        break
+                weighted_bid = weighted_bid_sum / bid_cum_qty if bid_cum_qty > 0 else None
+                spread_pct = ((weighted_ask - weighted_bid) / weighted_ask) * 100 if weighted_ask and weighted_bid else None
+                # Logger output for market info
+                if weighted_bid is not None and weighted_ask is not None and spread_pct is not None:
+                    market_info = f"Weighted bid: {weighted_bid:.4f}, Weighted ask: {weighted_ask:.4f}, Spread: {spread_pct:.4f}%"
+                else:
+                    market_info = "Market info unavailable"
                 # Position info: show entry price, highest covering bid, and current thresholds for each position
                 positions_info = ''
                 if positions:
@@ -171,36 +182,24 @@ if __name__ == "__main__":
                     pos_strs = []
                     for i, pos in enumerate(positions, 1):
                         entry_price = pos['price']
-                        # Calculate thresholds
                         lower_threshold = round(entry_price * 0.998, 4)  # -0.2%
                         upper_threshold = pos.get('upper_threshold', round(entry_price * 1.001, 4))  # +0.1%
                         # Find the highest open bid that can cover the position
-                        highest_bid = None
-                        order_book = exchange.fetch_order_book(symbol)
+                        highest_covering_bid = None
                         for bid in order_book['bids']:
                             bid_price = float(bid[0])
                             bid_qty = float(bid[1])
                             if bid_qty >= pos['qty']:
-                                highest_bid = bid_price
+                                highest_covering_bid = bid_price
                                 break
-                        # Ratchet up upper threshold if highest_bid exceeds it
-                        if highest_bid and highest_bid > upper_threshold:
-                            upper_threshold = highest_bid
+                        if highest_covering_bid and highest_covering_bid > upper_threshold:
+                            upper_threshold = highest_covering_bid
                             pos['upper_threshold'] = upper_threshold
-                        pos_strs.append(f"[{i}] entry={entry_price}, highest_covering_bid={highest_bid}, lower={lower_threshold}, upper={upper_threshold}")
+                        pos_strs.append(f"[{i}] entry={entry_price}, highest_covering_bid={highest_covering_bid}, lower={lower_threshold}, upper={upper_threshold}")
                     positions_info += '; '.join(pos_strs)
                 else:
                     positions_info = ' | Positions: None'
-                # If no open bid, log 'Open bid: None' and skip other market info
-                if open_bid_price is None:
-                    msg = f"{now}: Open bid: None{positions_info}"
-                    print(msg)
-                    logging.info(msg)
-                    for handler in logging.getLogger().handlers:
-                        handler.flush()
-                    return
-                usd_value_str = f"{open_bid_value:.2f}" if open_bid_value is not None else "None"
-                msg = f"{now}: Open bid: ${usd_value_str}, {open_bid_price}, Next highest: {next_highest_bid}, Lowest ask: {lowest_ask}{positions_info}"
+                msg = f"{now}: {market_info}{positions_info}"
                 print(msg)
                 logging.info(msg)
                 for handler in logging.getLogger().handlers:
