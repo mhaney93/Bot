@@ -234,8 +234,6 @@ if __name__ == "__main__":
             print("No USD balance available. Bot will shut down.")
             # Skip trading logic and exit gracefully
             filled_order = None
-        else:
-            bid_order_id = place_maker_bid(usd_balance)
 
         # Start the logger thread
         logger_thread = threading.Thread(target=periodic_logger, daemon=True)
