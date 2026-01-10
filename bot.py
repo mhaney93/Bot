@@ -97,7 +97,6 @@ def bid_chaser():
                 log_msg = f"Position entered: entry={entry_price}, ${usd_val:.2f}, weighted_bid={weighted_bid:.4f}, weighted_ask={weighted_ask:.4f}, spread={spread_pct_entry:.4f}%"
                 logging.info(log_msg)
                 print(log_msg)
-                logging.info(f"Market buy executed: entry={entry_price}, qty={qty}")
             except Exception as e:
                 logging.error(f"Error placing market buy: {e}")
         # Remove historical order tracking to avoid duplicate positions
