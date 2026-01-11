@@ -50,7 +50,7 @@ def log_status():
             return
         # Get USD balance
         try:
-            balances = exchange.fetch_balance({'timeout': 10000})
+            balances = exchange.fetch_balance()
             usd_balance = balances['total'].get('USD', 0)
             if usd_balance == 0:
                 usd_balance = balances['total'].get('USD4', 0)
