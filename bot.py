@@ -51,10 +51,16 @@ def log_status():
         cum_usd = 0
         weighted_ask_sum = 0
         for entry in asks:
-            if not (isinstance(entry, (list, tuple)) and len(entry) == 2):
+            price = qty = None
+            if isinstance(entry, (list, tuple)) and len(entry) == 2:
+                price, qty = entry
+            elif isinstance(entry, dict):
+                # Try common keys
+                price = entry.get('price')
+                qty = entry.get('amount', entry.get('qty'))
+            if price is None or qty is None:
                 logging.debug(f"Skipping malformed ask entry: {entry}")
                 continue
-            price, qty = entry
             try:
                 price = float(price)
                 qty = float(qty)
@@ -74,10 +80,15 @@ def log_status():
         bid_cum_usd = 0
         weighted_bid_sum = 0
         for entry in bids:
-            if not (isinstance(entry, (list, tuple)) and len(entry) == 2):
+            price = qty = None
+            if isinstance(entry, (list, tuple)) and len(entry) == 2:
+                price, qty = entry
+            elif isinstance(entry, dict):
+                price = entry.get('price')
+                qty = entry.get('amount', entry.get('qty'))
+            if price is None or qty is None:
                 logging.debug(f"Skipping malformed bid entry: {entry}")
                 continue
-            price, qty = entry
             try:
                 price = float(price)
                 qty = float(qty)
@@ -102,10 +113,15 @@ def log_status():
         weighted_ask_sum = 0
         max_usd = min(usd_balance * 0.9, usd_balance)
         for entry in asks:
-            if not (isinstance(entry, (list, tuple)) and len(entry) == 2):
+            price = qty = None
+            if isinstance(entry, (list, tuple)) and len(entry) == 2:
+                price, qty = entry
+            elif isinstance(entry, dict):
+                price = entry.get('price')
+                qty = entry.get('amount', entry.get('qty'))
+            if price is None or qty is None:
                 logging.debug(f"Skipping malformed ask entry: {entry}")
                 continue
-            price, qty = entry
             try:
                 price = float(price)
                 qty = float(qty)
@@ -128,10 +144,15 @@ def log_status():
         bid_cum_usd = 0
         weighted_bid_sum = 0
         for entry in bids:
-            if not (isinstance(entry, (list, tuple)) and len(entry) == 2):
+            price = qty = None
+            if isinstance(entry, (list, tuple)) and len(entry) == 2:
+                price, qty = entry
+            elif isinstance(entry, dict):
+                price = entry.get('price')
+                qty = entry.get('amount', entry.get('qty'))
+            if price is None or qty is None:
                 logging.debug(f"Skipping malformed bid entry: {entry}")
                 continue
-            price, qty = entry
             try:
                 price = float(price)
                 qty = float(qty)
