@@ -38,6 +38,8 @@ def bid_chaser():
         bid_chaser.last_distinct_price = None
     if not hasattr(bid_chaser, 'last_nonzero_price_change'):
         bid_chaser.last_nonzero_price_change = 0.0
+    if not hasattr(bid_chaser, 'latest_price_change'):
+        bid_chaser.latest_price_change = 0.0
     while True:
         try:
             balances = exchange.fetch_balance()
@@ -98,8 +100,10 @@ def bid_chaser():
             bid_chaser.last_distinct_price = current_price
             if price_change != 0.0:
                 bid_chaser.last_nonzero_price_change = price_change
-        # Buy condition: last non-zero price change > 0 and spread < 0.1%
-        if bid_chaser.last_nonzero_price_change > 0 and spread_pct is not None and spread_pct < 0.1:
+        # Always use the last nonzero price change for buy logic
+        bid_chaser.latest_price_change = bid_chaser.last_nonzero_price_change
+        # Buy condition: latest price change > 0 and spread < 0.1%
+        if bid_chaser.latest_price_change > 0 and spread_pct is not None and spread_pct < 0.1:
             try:
                 order = exchange.create_market_buy_order(symbol, round(cum_qty, 3))
                 entry_price = float(order['average']) if 'average' in order else weighted_ask
