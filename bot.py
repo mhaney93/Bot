@@ -71,12 +71,13 @@ def log_status():
             cum_qty += qty
             cum_usd += usd_val
             weighted_ask_sum += price * usd_val
-            # Final type check before comparison
-            if not isinstance(cum_usd, (int, float)):
-                logging.debug(f"Skipping ask break due to non-numeric cum_usd: {cum_usd}")
+            # Final type check and error catch before comparison
+            try:
+                if cum_usd >= 50:
+                    break
+            except Exception as err:
+                logging.error(f"Comparison error in asks loop: cum_usd={cum_usd}, err={err}, entry={entry}")
                 continue
-            if cum_usd >= 50:
-                break
         weighted_ask = weighted_ask_sum / cum_usd if cum_usd > 0 else None
         # Cumulate bids
         bids = order_book['bids']
@@ -109,8 +110,12 @@ def log_status():
             if not all(isinstance(x, (int, float)) for x in [bid_cum_qty, qty, cum_qty]):
                 logging.debug(f"Skipping bid entry due to non-numeric accumulator: bid_cum_qty={bid_cum_qty}, qty={qty}, cum_qty={cum_qty}")
                 continue
-            if bid_cum_qty + qty > cum_qty:
-                qty = cum_qty - bid_cum_qty
+            try:
+                if bid_cum_qty + qty > cum_qty:
+                    qty = cum_qty - bid_cum_qty
+            except Exception as err:
+                logging.error(f"Comparison error in bids loop: bid_cum_qty={bid_cum_qty}, qty={qty}, cum_qty={cum_qty}, err={err}, entry={entry}")
+                continue
             bid_cum_qty += qty
     except Exception as e:
         logging.error(f"Error in log_status: {e}")
