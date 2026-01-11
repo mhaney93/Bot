@@ -34,18 +34,7 @@ def log_status():
             now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             try:
                 order_book = exchange.fetch_order_book(symbol)
-                print("RAW order_book type:", type(order_book))
-                print("RAW order_book dir:", dir(order_book))
-                print("RAW order_book:", order_book)
-                try:
-                    print("RAW order_book['asks']:", order_book['asks'][:5])
-                    print("RAW order_book['bids']:", order_book['bids'][:5])
-                except Exception as sub_e:
-                    print("Exception accessing order_book['asks'] or ['bids']:", sub_e)
-                    import traceback; traceback.print_exc()
             except Exception as e:
-                print("Exception fetching order book:", e)
-                import traceback; traceback.print_exc()
                 logging.error(f"Error fetching order book in log_status: {e}")
                 time.sleep(10)
                 continue
@@ -58,9 +47,6 @@ def log_status():
             except Exception as e:
                 logging.error(f"Error fetching account info in log_status: {e}")
                 usd_balance = 0
-            # Print raw order book data for debugging
-            print("RAW order_book['asks']:", order_book['asks'][:5])
-            print("RAW order_book['bids']:", order_book['bids'][:5])
             # ...existing code for asks and bids processing...
             asks = order_book['asks']
             cum_qty = 0.0
