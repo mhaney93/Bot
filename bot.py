@@ -47,9 +47,9 @@ def log_status():
             usd_balance = 0
         # Cumulate asks
         asks = order_book['asks']
-        cum_qty = 0
-        cum_usd = 0
-        weighted_ask_sum = 0
+        cum_qty = 0.0
+        cum_usd = 0.0
+        weighted_ask_sum = 0.0
         for entry in asks:
             price = qty = None
             if isinstance(entry, (list, tuple)) and len(entry) == 2:
@@ -68,17 +68,30 @@ def log_status():
                 logging.debug(f"Skipping ask entry with non-numeric price/qty: {entry}")
                 continue
             usd_val = price * qty
+            # Ensure accumulators are always floats
+            if not isinstance(cum_qty, (int, float)):
+                logging.warning(f"cum_qty corrupted: {cum_qty}, resetting to 0.0")
+                cum_qty = 0.0
+            if not isinstance(cum_usd, (int, float)):
+                logging.warning(f"cum_usd corrupted: {cum_usd}, resetting to 0.0")
+                cum_usd = 0.0
+            if not isinstance(weighted_ask_sum, (int, float)):
+                logging.warning(f"weighted_ask_sum corrupted: {weighted_ask_sum}, resetting to 0.0")
+                weighted_ask_sum = 0.0
             cum_qty += qty
             cum_usd += usd_val
             weighted_ask_sum += price * usd_val
+            if not isinstance(cum_usd, (int, float)):
+                logging.warning(f"cum_usd corrupted after add: {cum_usd}, resetting to 0.0")
+                cum_usd = 0.0
             if cum_usd >= 50:
                 break
         weighted_ask = weighted_ask_sum / cum_usd if cum_usd > 0 else None
         # Cumulate bids
         bids = order_book['bids']
-        bid_cum_qty = 0
-        bid_cum_usd = 0
-        weighted_bid_sum = 0
+        bid_cum_qty = 0.0
+        bid_cum_usd = 0.0
+        weighted_bid_sum = 0.0
         for entry in bids:
             price = qty = None
             if isinstance(entry, (list, tuple)) and len(entry) == 2:
@@ -95,6 +108,12 @@ def log_status():
             except Exception:
                 logging.debug(f"Skipping bid entry with non-numeric price/qty: {entry}")
                 continue
+            if not isinstance(bid_cum_qty, (int, float)):
+                logging.warning(f"bid_cum_qty corrupted: {bid_cum_qty}, resetting to 0.0")
+                bid_cum_qty = 0.0
+            if not isinstance(cum_qty, (int, float)):
+                logging.warning(f"cum_qty corrupted: {cum_qty}, resetting to 0.0")
+                cum_qty = 0.0
             if bid_cum_qty + qty > cum_qty:
                 qty = cum_qty - bid_cum_qty
             bid_cum_qty += qty
@@ -108,9 +127,9 @@ def log_status():
         except Exception as e:
             logging.error(f"Error in periodic_logger: {e}")
         time.sleep(10)
-        cum_qty = 0
-        cum_usd = 0
-        weighted_ask_sum = 0
+        cum_qty = 0.0
+        cum_usd = 0.0
+        weighted_ask_sum = 0.0
         max_usd = min(usd_balance * 0.9, usd_balance)
         for entry in asks:
             price = qty = None
@@ -129,20 +148,29 @@ def log_status():
                 logging.debug(f"Skipping ask entry with non-numeric price/qty: {entry}")
                 continue
             usd_val = price * qty
+            if not isinstance(cum_usd, (int, float)):
+                logging.warning(f"cum_usd corrupted: {cum_usd}, resetting to 0.0")
+                cum_usd = 0.0
+            if not isinstance(max_usd, (int, float)):
+                logging.warning(f"max_usd corrupted: {max_usd}, resetting to 0.0")
+                max_usd = 0.0
             if cum_usd + usd_val > max_usd:
                 qty = (max_usd - cum_usd) / price
                 usd_val = price * qty
             cum_qty += qty
             cum_usd += usd_val
             weighted_ask_sum += price * usd_val
+            if not isinstance(cum_usd, (int, float)):
+                logging.warning(f"cum_usd corrupted after add: {cum_usd}, resetting to 0.0")
+                cum_usd = 0.0
             if cum_usd >= max_usd:
                 break
         weighted_ask = weighted_ask_sum / cum_usd if cum_usd > 0 else None
         # Cumulate bids until quantity covers cum_qty
         bids = order_book['bids']
-        bid_cum_qty = 0
-        bid_cum_usd = 0
-        weighted_bid_sum = 0
+        bid_cum_qty = 0.0
+        bid_cum_usd = 0.0
+        weighted_bid_sum = 0.0
         for entry in bids:
             price = qty = None
             if isinstance(entry, (list, tuple)) and len(entry) == 2:
@@ -159,11 +187,20 @@ def log_status():
             except Exception:
                 logging.debug(f"Skipping bid entry with non-numeric price/qty: {entry}")
                 continue
+            if not isinstance(bid_cum_qty, (int, float)):
+                logging.warning(f"bid_cum_qty corrupted: {bid_cum_qty}, resetting to 0.0")
+                bid_cum_qty = 0.0
+            if not isinstance(cum_qty, (int, float)):
+                logging.warning(f"cum_qty corrupted: {cum_qty}, resetting to 0.0")
+                cum_qty = 0.0
             if bid_cum_qty + qty > cum_qty:
                 qty = cum_qty - bid_cum_qty
             bid_cum_qty += qty
             bid_cum_usd += price * qty
             weighted_bid_sum += price * qty
+            if not isinstance(bid_cum_qty, (int, float)):
+                logging.warning(f"bid_cum_qty corrupted after add: {bid_cum_qty}, resetting to 0.0")
+                bid_cum_qty = 0.0
             if bid_cum_qty >= cum_qty:
                 break
         if bid_cum_qty < cum_qty:
