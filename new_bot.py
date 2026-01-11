@@ -16,7 +16,7 @@ USD_TRADE_PCT = 0.9  # 90%
 # --- LOGGING SETUP ---
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s %(levelname)s %(message)s',
+    format='%(asctime)s %(message)s',  # Removed %(levelname)s
     handlers=[
         logging.FileHandler("new_bot.log"),
         logging.StreamHandler()
