@@ -1,14 +1,3 @@
-# Periodic logger function
-def periodic_logger():
-    while True:
-        try:
-            log_status()
-        except Exception as e:
-            logging.error(f"Error in periodic_logger: {e}")
-        time.sleep(10)
-# Main trading bot for BNB/USD on binance.us
-
-
 import logging
 import datetime
 import json
@@ -112,8 +101,25 @@ def log_status():
                 except Exception:
                     continue
 
-            # Log status every 10 seconds
-            logging.info(f"[10s] USD balance: {usd_balance}, Top ask: {asks[0][0] if asks else 'N/A'}, Top bid: {bids[0][0] if bids else 'N/A'}")
+            # Calculate spread and price change
+            top_ask = asks[0][0] if asks else None
+            top_bid = bids[0][0] if bids else None
+            spread = ((top_ask - top_bid) / top_ask * 100) if (top_ask and top_bid) else None
+
+            # Track last price for price change
+            if not hasattr(log_status, 'last_price'):
+                log_status.last_price = top_bid if top_bid else 0
+            price_change = ((top_bid - log_status.last_price) / log_status.last_price * 100) if (top_bid and log_status.last_price) else 0
+            log_status.last_price = top_bid if top_bid else log_status.last_price
+
+            # Format positions
+            pos_str = 'None'
+            if positions:
+                pos_str = ', '.join([f"{p['side']} {p['amount']} @ {p['price']}" for p in positions])
+
+            # Format log line
+            log_line = f"{datetime.datetime.now():%Y-%m-%d %H:%M:%S}: ${usd_balance:,.2f}, bid: {top_bid if top_bid else 'N/A'}, ask: {top_ask if top_ask else 'N/A'}, Spread: {spread:.2f}% price change: {price_change:+.2f} | Positions: {pos_str}"
+            logging.info(log_line)
         except Exception as e:
             logging.error(f"Error in log_status: {e}")
             traceback.print_exc()
@@ -196,9 +202,7 @@ if __name__ == "__main__":
     # Start trading and logger threads
     import threading
     trading_thread = threading.Thread(target=log_status, daemon=True)
-    logger_thread = threading.Thread(target=periodic_logger, daemon=True)
     trading_thread.start()
-    logger_thread.start()
     # Keep main thread alive and print heartbeat
     while True:
         print("[Main] Bot heartbeat - still running...")
