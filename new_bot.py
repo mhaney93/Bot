@@ -14,14 +14,16 @@ LOG_INTERVAL = 10  # seconds
 USD_TRADE_PCT = 0.9  # 90%
 
 # --- LOGGING SETUP ---
-for handler in logging.root.handlers[:]:
-    logging.root.removeHandler(handler)
+logger = logging.getLogger("new_bot")
+logger.setLevel(logging.INFO)
 formatter = logging.Formatter('%(asctime)s %(message)s')
 file_handler = logging.FileHandler("new_bot.log")
 file_handler.setFormatter(formatter)
 stream_handler = logging.StreamHandler()
 stream_handler.setFormatter(formatter)
-logging.basicConfig(level=logging.INFO, handlers=[file_handler, stream_handler])
+logger.handlers.clear()
+logger.addHandler(file_handler)
+logger.addHandler(stream_handler)
 
 # --- GLOBALS ---
 position = None  # {'entry': float, 'amount': float, 'ratchet': float}
@@ -45,9 +47,9 @@ def log_status():
             pos_str = (
                 f"ENTRY: {position['entry']:.2f}, AMT: {position['amount']:.4f}, RATCHET: {position['ratchet']:.2f}" if position else 'None'
             )
-            logging.info(f"bid: {top_bid}, ask: {top_ask}, spread: {spread:.3f}%, position: {pos_str}")
+            logger.info(f"bid: {top_bid}, ask: {top_ask}, spread: {spread:.3f}%, position: {pos_str}")
         except Exception as e:
-            logging.error(f"Error in log_status: {e}")
+            logger.error(f"Error in log_status: {e}")
         time.sleep(LOG_INTERVAL)
 
 # --- MAIN TRADING LOOP ---
@@ -78,7 +80,7 @@ def main():
                                 'amount': float(order['filled']),
                                 'ratchet': float(order['average'] or top_ask) * (1 + RATCHET_INCREMENT / 100)
                             }
-                            logging.info(f"ENTER POSITION: {position}")
+                            logger.info(f"ENTER POSITION: {position}")
                             send_ntfy_notification(f"Entered position: {position}")
                     last_price = top_bid
             # --- SELL LOGIC ---
@@ -99,7 +101,7 @@ def main():
                 # If price drops to <= 0.2% above entry, sell
                 if best_bid is not None and best_bid <= entry * (1 + SPREAD_SELL_THRESHOLD / 100):
                     order = exchange.create_market_sell_order(PAIR, position['amount'])
-                    logging.info(f"EXIT POSITION: {order}")
+                    logger.info(f"EXIT POSITION: {order}")
                     send_ntfy_notification(f"Exited position: {order}")
                     position = None
                 # If price rises above ratchet, move ratchet up
@@ -107,10 +109,10 @@ def main():
                     new_ratchet = entry * (1 + ((int((best_bid/entry - 1) * 1000) // int(RATCHET_INCREMENT*10)) * RATCHET_INCREMENT) / 100)
                     if new_ratchet > position['ratchet']:
                         position['ratchet'] = new_ratchet
-                        logging.info(f"RATCHET UP: {position['ratchet']:.4f}")
+                        logger.info(f"RATCHET UP: {position['ratchet']:.4f}")
             time.sleep(2)
         except Exception as e:
-            logging.error(f"Error in main loop: {e}")
+            logger.error(f"Error in main loop: {e}")
             traceback.print_exc()
             time.sleep(10)
 
@@ -123,10 +125,10 @@ if __name__ == "__main__":
             "secret": config["binance_api_secret"],
             "enableRateLimit": True,
         })
-        logging.info("Bot started.")
+        logger.info("Bot started.")
         send_ntfy_notification("Bot started.")
         threading.Thread(target=log_status, daemon=True).start()
         main()
     except Exception as e:
-        logging.error(f"Fatal error: {e}")
+        logger.error(f"Fatal error: {e}")
         traceback.print_exc()
