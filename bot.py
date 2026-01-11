@@ -34,10 +34,18 @@ def log_status():
         now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         try:
             order_book = exchange.fetch_order_book(symbol, {'timeout': 10000})
+            print("RAW order_book type:", type(order_book))
+            print("RAW order_book dir:", dir(order_book))
             print("RAW order_book:", order_book)
-            print("RAW order_book['asks']:", order_book.get('asks', [])[:5])
-            print("RAW order_book['bids']:", order_book.get('bids', [])[:5])
+            try:
+                print("RAW order_book['asks']:", order_book['asks'][:5])
+                print("RAW order_book['bids']:", order_book['bids'][:5])
+            except Exception as sub_e:
+                print("Exception accessing order_book['asks'] or ['bids']:", sub_e)
+                import traceback; traceback.print_exc()
         except Exception as e:
+            print("Exception fetching order book:", e)
+            import traceback; traceback.print_exc()
             logging.error(f"Error fetching order book in log_status: {e}")
             return
         # Get USD balance
