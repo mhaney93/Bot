@@ -47,6 +47,7 @@ def log_status():
             except Exception as e:
                 logging.error(f"Error fetching account info in log_status: {e}")
                 usd_balance = 0
+
             # ...existing code for asks and bids processing...
             asks = order_book['asks']
             cum_qty = 0.0
@@ -62,29 +63,22 @@ def log_status():
                         price = entry.get('price')
                         qty = entry.get('amount', entry.get('qty'))
                     if price is None or qty is None:
-                        logging.debug(f"Skipping malformed ask entry: {entry}")
                         continue
                     try:
                         price = float(price)
                         qty = float(qty)
                     except Exception:
-                        logging.debug(f"Skipping ask entry with non-numeric price/qty: {entry}")
                         continue
                     usd_val = price * qty
                     cum_qty += qty
                     cum_usd += usd_val
                     weighted_ask_sum += price * usd_val
-                    # Final type check and error catch before comparison
                     try:
                         if cum_usd >= 50:
                             break
-                    except Exception as err:
-                        print(f"ASKS COMPARISON ERROR: cum_usd={cum_usd}, entry={entry}")
-                        import traceback; traceback.print_exc()
+                    except Exception:
                         continue
-                except Exception as loop_err:
-                    print(f"ASKS LOOP ERROR: {loop_err}, entry={entry}, cum_qty={cum_qty}, cum_usd={cum_usd}")
-                    import traceback; traceback.print_exc()
+                except Exception:
                     continue
             weighted_ask = weighted_ask_sum / cum_usd if cum_usd > 0 else None
             # Cumulate bids
@@ -101,30 +95,25 @@ def log_status():
                         price = entry.get('price')
                         qty = entry.get('amount', entry.get('qty'))
                     if price is None or qty is None:
-                        logging.debug(f"Skipping malformed bid entry: {entry}")
                         continue
                     try:
                         price = float(price)
                         qty = float(qty)
                     except Exception:
-                        logging.debug(f"Skipping bid entry with non-numeric price/qty: {entry}")
                         continue
-                    # Final type checks before arithmetic/comparison
                     if not all(isinstance(x, (int, float)) for x in [bid_cum_qty, qty, cum_qty]):
-                        logging.debug(f"Skipping bid entry due to non-numeric accumulator: bid_cum_qty={bid_cum_qty}, qty={qty}, cum_qty={cum_qty}")
                         continue
                     try:
                         if bid_cum_qty + qty > cum_qty:
                             qty = cum_qty - bid_cum_qty
-                    except Exception as err:
-                        print(f"BIDS COMPARISON ERROR: bid_cum_qty={bid_cum_qty}, qty={qty}, cum_qty={cum_qty}, entry={entry}")
-                        import traceback; traceback.print_exc()
+                    except Exception:
                         continue
                     bid_cum_qty += qty
-                except Exception as loop_err:
-                    print(f"BIDS LOOP ERROR: {loop_err}, entry={entry}, bid_cum_qty={bid_cum_qty}, cum_qty={cum_qty}")
-                    import traceback; traceback.print_exc()
+                except Exception:
                     continue
+
+            # Log status every 10 seconds
+            logging.info(f"[10s] USD balance: {usd_balance}, Top ask: {asks[0][0] if asks else 'N/A'}, Top bid: {bids[0][0] if bids else 'N/A'}")
         except Exception as e:
             logging.error(f"Error in log_status: {e}")
             traceback.print_exc()
