@@ -78,10 +78,12 @@ def log_status():
                     if cum_usd >= 50:
                         break
                 except Exception as err:
-                    logging.error(f"Comparison error in asks loop: cum_usd={cum_usd}, err={err}, entry={entry}")
+                    print(f"ASKS COMPARISON ERROR: cum_usd={cum_usd}, entry={entry}")
+                    import traceback; traceback.print_exc()
                     continue
             except Exception as loop_err:
-                logging.error(f"Error in asks loop: {loop_err}, entry={entry}, cum_qty={cum_qty}, cum_usd={cum_usd}")
+                print(f"ASKS LOOP ERROR: {loop_err}, entry={entry}, cum_qty={cum_qty}, cum_usd={cum_usd}")
+                import traceback; traceback.print_exc()
                 continue
         weighted_ask = weighted_ask_sum / cum_usd if cum_usd > 0 else None
         # Cumulate bids
@@ -114,11 +116,13 @@ def log_status():
                     if bid_cum_qty + qty > cum_qty:
                         qty = cum_qty - bid_cum_qty
                 except Exception as err:
-                    logging.error(f"Comparison error in bids loop: bid_cum_qty={bid_cum_qty}, qty={qty}, cum_qty={cum_qty}, err={err}, entry={entry}")
+                    print(f"BIDS COMPARISON ERROR: bid_cum_qty={bid_cum_qty}, qty={qty}, cum_qty={cum_qty}, entry={entry}")
+                    import traceback; traceback.print_exc()
                     continue
                 bid_cum_qty += qty
             except Exception as loop_err:
-                logging.error(f"Error in bids loop: {loop_err}, entry={entry}, bid_cum_qty={bid_cum_qty}, cum_qty={cum_qty}")
+                print(f"BIDS LOOP ERROR: {loop_err}, entry={entry}, bid_cum_qty={bid_cum_qty}, cum_qty={cum_qty}")
+                import traceback; traceback.print_exc()
                 continue
     except Exception as e:
         logging.error(f"Error in log_status: {e}")
