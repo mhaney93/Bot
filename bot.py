@@ -289,6 +289,9 @@ if __name__ == "__main__":
                         if bid_qty >= qty:
                             highest_covering_bid = bid_price
                             break
+                    # If no bid covers the full position, use the highest available bid price
+                    if highest_covering_bid is None and order_book['bids']:
+                        highest_covering_bid = float(order_book['bids'][0][0])
                     # Ratcheting logic: floor only ratchets up, never down
                     ratchet_step = 0.001  # 0.1%
                     if 'ratchet_level' not in pos:
