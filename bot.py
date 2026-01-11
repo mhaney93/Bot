@@ -1,3 +1,11 @@
+# Periodic logger function
+def periodic_logger():
+    while True:
+        try:
+            log_status()
+        except Exception as e:
+            logging.error(f"Error in periodic_logger: {e}")
+        time.sleep(10)
 # Main trading bot for BNB/USD on binance.us
 
 
@@ -235,4 +243,12 @@ if __name__ == "__main__":
         logging.error(f"Error fetching account info: {e}")
         usd_balance = 0
 
-        # Removed unreachable nested log_status definition and try block
+    # Start trading and logger threads
+    import threading
+    trading_thread = threading.Thread(target=log_status, daemon=True)
+    logger_thread = threading.Thread(target=periodic_logger, daemon=True)
+    trading_thread.start()
+    logger_thread.start()
+    # Keep main thread alive
+    while True:
+        time.sleep(60)
