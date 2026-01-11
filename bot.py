@@ -101,6 +101,10 @@ def log_status():
             except Exception:
                 logging.debug(f"Skipping bid entry with non-numeric price/qty: {entry}")
                 continue
+            # Final type checks before arithmetic/comparison
+            if not all(isinstance(x, (int, float)) for x in [bid_cum_qty, qty, cum_qty]):
+                logging.debug(f"Skipping bid entry due to non-numeric accumulator: bid_cum_qty={bid_cum_qty}, qty={qty}, cum_qty={cum_qty}")
+                continue
             if bid_cum_qty + qty > cum_qty:
                 qty = cum_qty - bid_cum_qty
             bid_cum_qty += qty
