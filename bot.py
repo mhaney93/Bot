@@ -97,9 +97,15 @@ def log_status():
         cum_usd = 0
         weighted_ask_sum = 0
         max_usd = min(usd_balance * 0.9, usd_balance)
-        for price, qty in asks:
-            price = float(price)
-            qty = float(qty)
+        for entry in asks:
+            if not (isinstance(entry, (list, tuple)) and len(entry) == 2):
+                continue
+            price, qty = entry
+            try:
+                price = float(price)
+                qty = float(qty)
+            except Exception:
+                continue
             usd_val = price * qty
             if cum_usd + usd_val > max_usd:
                 qty = (max_usd - cum_usd) / price
@@ -115,9 +121,15 @@ def log_status():
         bid_cum_qty = 0
         bid_cum_usd = 0
         weighted_bid_sum = 0
-        for price, qty in bids:
-            price = float(price)
-            qty = float(qty)
+        for entry in bids:
+            if not (isinstance(entry, (list, tuple)) and len(entry) == 2):
+                continue
+            price, qty = entry
+            try:
+                price = float(price)
+                qty = float(qty)
+            except Exception:
+                continue
             if bid_cum_qty + qty > cum_qty:
                 qty = cum_qty - bid_cum_qty
             bid_cum_qty += qty
