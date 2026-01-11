@@ -46,6 +46,9 @@ def log_status():
         except Exception as e:
             logging.error(f"Error fetching account info in log_status: {e}")
             usd_balance = 0
+        # Print raw order book data for debugging
+        print("RAW order_book['asks']:", order_book['asks'][:5])
+        print("RAW order_book['bids']:", order_book['bids'][:5])
         # Cumulate asks
         asks = order_book['asks']
         cum_qty = 0.0
