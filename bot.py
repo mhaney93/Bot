@@ -34,6 +34,9 @@ def log_status():
         now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         try:
             order_book = exchange.fetch_order_book(symbol, {'timeout': 10000})
+            print("RAW order_book:", order_book)
+            print("RAW order_book['asks']:", order_book.get('asks', [])[:5])
+            print("RAW order_book['bids']:", order_book.get('bids', [])[:5])
         except Exception as e:
             logging.error(f"Error fetching order book in log_status: {e}")
             return
