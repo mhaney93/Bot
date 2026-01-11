@@ -52,15 +52,14 @@ def log_status():
         weighted_ask_sum = 0
         for entry in asks:
             if not (isinstance(entry, (list, tuple)) and len(entry) == 2):
+                logging.debug(f"Skipping malformed ask entry: {entry}")
                 continue
             price, qty = entry
-            # Ensure both price and qty are numbers
-            if not (isinstance(price, (int, float, str)) and isinstance(qty, (int, float, str))):
-                continue
             try:
                 price = float(price)
                 qty = float(qty)
             except Exception:
+                logging.debug(f"Skipping ask entry with non-numeric price/qty: {entry}")
                 continue
             usd_val = price * qty
             cum_qty += qty
@@ -76,15 +75,14 @@ def log_status():
         weighted_bid_sum = 0
         for entry in bids:
             if not (isinstance(entry, (list, tuple)) and len(entry) == 2):
+                logging.debug(f"Skipping malformed bid entry: {entry}")
                 continue
             price, qty = entry
-            # Ensure both price and qty are numbers
-            if not (isinstance(price, (int, float, str)) and isinstance(qty, (int, float, str))):
-                continue
             try:
                 price = float(price)
                 qty = float(qty)
             except Exception:
+                logging.debug(f"Skipping bid entry with non-numeric price/qty: {entry}")
                 continue
             if bid_cum_qty + qty > cum_qty:
                 qty = cum_qty - bid_cum_qty
@@ -105,15 +103,14 @@ def log_status():
         max_usd = min(usd_balance * 0.9, usd_balance)
         for entry in asks:
             if not (isinstance(entry, (list, tuple)) and len(entry) == 2):
+                logging.debug(f"Skipping malformed ask entry: {entry}")
                 continue
             price, qty = entry
-            # Ensure both price and qty are numbers
-            if not (isinstance(price, (int, float, str)) and isinstance(qty, (int, float, str))):
-                continue
             try:
                 price = float(price)
                 qty = float(qty)
             except Exception:
+                logging.debug(f"Skipping ask entry with non-numeric price/qty: {entry}")
                 continue
             usd_val = price * qty
             if cum_usd + usd_val > max_usd:
@@ -132,15 +129,14 @@ def log_status():
         weighted_bid_sum = 0
         for entry in bids:
             if not (isinstance(entry, (list, tuple)) and len(entry) == 2):
+                logging.debug(f"Skipping malformed bid entry: {entry}")
                 continue
             price, qty = entry
-            # Ensure both price and qty are numbers
-            if not (isinstance(price, (int, float, str)) and isinstance(qty, (int, float, str))):
-                continue
             try:
                 price = float(price)
                 qty = float(qty)
             except Exception:
+                logging.debug(f"Skipping bid entry with non-numeric price/qty: {entry}")
                 continue
             if bid_cum_qty + qty > cum_qty:
                 qty = cum_qty - bid_cum_qty
