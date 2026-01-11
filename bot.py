@@ -16,6 +16,7 @@ import ccxt
 import os
 import time
 import pickle
+import traceback
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s %(levelname)s %(message)s',
@@ -121,6 +122,7 @@ def log_status():
                 continue
     except Exception as e:
         logging.error(f"Error in log_status: {e}")
+        traceback.print_exc()
 
 def get_24h_stats_file():
     return os.path.join(os.path.dirname(__file__), 'pl_24h.pkl')
