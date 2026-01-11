@@ -51,32 +51,36 @@ def log_status():
         cum_usd = 0.0
         weighted_ask_sum = 0.0
         for entry in asks:
-            price = qty = None
-            if isinstance(entry, (list, tuple)) and len(entry) == 2:
-                price, qty = entry
-            elif isinstance(entry, dict):
-                # Try common keys
-                price = entry.get('price')
-                qty = entry.get('amount', entry.get('qty'))
-            if price is None or qty is None:
-                logging.debug(f"Skipping malformed ask entry: {entry}")
-                continue
             try:
-                price = float(price)
-                qty = float(qty)
-            except Exception:
-                logging.debug(f"Skipping ask entry with non-numeric price/qty: {entry}")
-                continue
-            usd_val = price * qty
-            cum_qty += qty
-            cum_usd += usd_val
-            weighted_ask_sum += price * usd_val
-            # Final type check and error catch before comparison
-            try:
-                if cum_usd >= 50:
-                    break
-            except Exception as err:
-                logging.error(f"Comparison error in asks loop: cum_usd={cum_usd}, err={err}, entry={entry}")
+                price = qty = None
+                if isinstance(entry, (list, tuple)) and len(entry) == 2:
+                    price, qty = entry
+                elif isinstance(entry, dict):
+                    # Try common keys
+                    price = entry.get('price')
+                    qty = entry.get('amount', entry.get('qty'))
+                if price is None or qty is None:
+                    logging.debug(f"Skipping malformed ask entry: {entry}")
+                    continue
+                try:
+                    price = float(price)
+                    qty = float(qty)
+                except Exception:
+                    logging.debug(f"Skipping ask entry with non-numeric price/qty: {entry}")
+                    continue
+                usd_val = price * qty
+                cum_qty += qty
+                cum_usd += usd_val
+                weighted_ask_sum += price * usd_val
+                # Final type check and error catch before comparison
+                try:
+                    if cum_usd >= 50:
+                        break
+                except Exception as err:
+                    logging.error(f"Comparison error in asks loop: cum_usd={cum_usd}, err={err}, entry={entry}")
+                    continue
+            except Exception as loop_err:
+                logging.error(f"Error in asks loop: {loop_err}, entry={entry}, cum_qty={cum_qty}, cum_usd={cum_usd}")
                 continue
         weighted_ask = weighted_ask_sum / cum_usd if cum_usd > 0 else None
         # Cumulate bids
@@ -85,38 +89,36 @@ def log_status():
         bid_cum_usd = 0.0
         weighted_bid_sum = 0.0
         for entry in bids:
-            price = qty = None
-            if isinstance(entry, (list, tuple)) and len(entry) == 2:
-                price, qty = entry
-            elif isinstance(entry, dict):
-                price = entry.get('price')
-                qty = entry.get('amount', entry.get('qty'))
-            if price is None or qty is None:
-                logging.debug(f"Skipping malformed bid entry: {entry}")
-                continue
             try:
-                price = float(price)
-                qty = float(qty)
-            except Exception:
-                logging.debug(f"Skipping bid entry with non-numeric price/qty: {entry}")
+                price = qty = None
+                if isinstance(entry, (list, tuple)) and len(entry) == 2:
+                    price, qty = entry
+                elif isinstance(entry, dict):
+                    price = entry.get('price')
+                    qty = entry.get('amount', entry.get('qty'))
+                if price is None or qty is None:
+                    logging.debug(f"Skipping malformed bid entry: {entry}")
+                    continue
+                try:
+                    price = float(price)
+                    qty = float(qty)
+                except Exception:
+                    logging.debug(f"Skipping bid entry with non-numeric price/qty: {entry}")
+                    continue
+                # Final type checks before arithmetic/comparison
+                if not all(isinstance(x, (int, float)) for x in [bid_cum_qty, qty, cum_qty]):
+                    logging.debug(f"Skipping bid entry due to non-numeric accumulator: bid_cum_qty={bid_cum_qty}, qty={qty}, cum_qty={cum_qty}")
+                    continue
+                try:
+                    if bid_cum_qty + qty > cum_qty:
+                        qty = cum_qty - bid_cum_qty
+                except Exception as err:
+                    logging.error(f"Comparison error in bids loop: bid_cum_qty={bid_cum_qty}, qty={qty}, cum_qty={cum_qty}, err={err}, entry={entry}")
+                    continue
+                bid_cum_qty += qty
+            except Exception as loop_err:
+                logging.error(f"Error in bids loop: {loop_err}, entry={entry}, bid_cum_qty={bid_cum_qty}, cum_qty={cum_qty}")
                 continue
-            try:
-                price = float(price)
-                qty = float(qty)
-            except Exception:
-                logging.debug(f"Skipping bid entry with non-numeric price/qty: {entry}")
-                continue
-            # Final type checks before arithmetic/comparison
-            if not all(isinstance(x, (int, float)) for x in [bid_cum_qty, qty, cum_qty]):
-                logging.debug(f"Skipping bid entry due to non-numeric accumulator: bid_cum_qty={bid_cum_qty}, qty={qty}, cum_qty={cum_qty}")
-                continue
-            try:
-                if bid_cum_qty + qty > cum_qty:
-                    qty = cum_qty - bid_cum_qty
-            except Exception as err:
-                logging.error(f"Comparison error in bids loop: bid_cum_qty={bid_cum_qty}, qty={qty}, cum_qty={cum_qty}, err={err}, entry={entry}")
-                continue
-            bid_cum_qty += qty
     except Exception as e:
         logging.error(f"Error in log_status: {e}")
 
