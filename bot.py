@@ -52,6 +52,12 @@ def log_status():
             logger.error(f"Error in log_status: {e}")
         time.sleep(LOG_INTERVAL)
 
+# --- HEARTBEAT THREAD ---
+def heartbeat():
+    while True:
+        logger.info("HEARTBEAT: bot is alive")
+        time.sleep(60)
+
 # --- MAIN TRADING LOOP ---
 def main():
     global position, last_price
@@ -120,6 +126,7 @@ if __name__ == "__main__":
     try:
         with open("config.json") as f:
             config = json.load(f)
+        global exchange
         exchange = ccxt.binanceus({
             "apiKey": config["binance_api_key"],
             "secret": config["binance_api_secret"],
@@ -128,7 +135,14 @@ if __name__ == "__main__":
         logger.info("Bot started.")
         send_ntfy_notification("Bot started.")
         threading.Thread(target=log_status, daemon=True).start()
-        main()
+        threading.Thread(target=heartbeat, daemon=True).start()
+        while True:
+            try:
+                main()
+            except Exception as e:
+                logger.error(f"Main loop crashed: {e}")
+                traceback.print_exc()
+                time.sleep(5)
     except Exception as e:
         logger.error(f"Fatal error: {e}")
         traceback.print_exc()
