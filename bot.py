@@ -118,7 +118,7 @@ def log_status():
                 pos_str = ', '.join([f"{p['side']} {p['amount']} @ {p['price']}" for p in positions])
 
             # Format log line
-            log_line = f"{datetime.datetime.now():%Y-%m-%d %H:%M:%S}: ${usd_balance:,.2f}, bid: {top_bid if top_bid else 'N/A'}, ask: {top_ask if top_ask else 'N/A'}, Spread: {spread:.2f}% price change: {price_change:+.2f} | Positions: {pos_str}"
+            log_line = f"${usd_balance:,.2f}, bid: {top_bid if top_bid else 'N/A'}, ask: {top_ask if top_ask else 'N/A'}, Spread: {spread:.2f}% price change: {price_change:+.2f} | Positions: {pos_str}"
             logging.info(log_line)
         except Exception as e:
             logging.error(f"Error in log_status: {e}")
@@ -203,7 +203,6 @@ if __name__ == "__main__":
     import threading
     trading_thread = threading.Thread(target=log_status, daemon=True)
     trading_thread.start()
-    # Keep main thread alive and print heartbeat
+    # Keep main thread alive
     while True:
-        print("[Main] Bot heartbeat - still running...")
         time.sleep(60)
