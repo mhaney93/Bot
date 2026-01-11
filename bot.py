@@ -71,6 +71,10 @@ def log_status():
             cum_qty += qty
             cum_usd += usd_val
             weighted_ask_sum += price * usd_val
+            # Final type check before comparison
+            if not isinstance(cum_usd, (int, float)):
+                logging.debug(f"Skipping ask break due to non-numeric cum_usd: {cum_usd}")
+                continue
             if cum_usd >= 50:
                 break
         weighted_ask = weighted_ask_sum / cum_usd if cum_usd > 0 else None
