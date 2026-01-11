@@ -54,6 +54,9 @@ def log_status():
             if not (isinstance(entry, (list, tuple)) and len(entry) == 2):
                 continue
             price, qty = entry
+            # Ensure both price and qty are numbers
+            if not (isinstance(price, (int, float, str)) and isinstance(qty, (int, float, str))):
+                continue
             try:
                 price = float(price)
                 qty = float(qty)
@@ -75,6 +78,9 @@ def log_status():
             if not (isinstance(entry, (list, tuple)) and len(entry) == 2):
                 continue
             price, qty = entry
+            # Ensure both price and qty are numbers
+            if not (isinstance(price, (int, float, str)) and isinstance(qty, (int, float, str))):
+                continue
             try:
                 price = float(price)
                 qty = float(qty)
@@ -101,6 +107,9 @@ def log_status():
             if not (isinstance(entry, (list, tuple)) and len(entry) == 2):
                 continue
             price, qty = entry
+            # Ensure both price and qty are numbers
+            if not (isinstance(price, (int, float, str)) and isinstance(qty, (int, float, str))):
+                continue
             try:
                 price = float(price)
                 qty = float(qty)
@@ -125,6 +134,9 @@ def log_status():
             if not (isinstance(entry, (list, tuple)) and len(entry) == 2):
                 continue
             price, qty = entry
+            # Ensure both price and qty are numbers
+            if not (isinstance(price, (int, float, str)) and isinstance(qty, (int, float, str))):
+                continue
             try:
                 price = float(price)
                 qty = float(qty)
