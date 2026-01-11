@@ -33,7 +33,7 @@ def log_status():
     try:
         now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         try:
-            order_book = exchange.fetch_order_book(symbol, {'timeout': 10000})
+            order_book = exchange.fetch_order_book(symbol)
             print("RAW order_book type:", type(order_book))
             print("RAW order_book dir:", dir(order_book))
             print("RAW order_book:", order_book)
