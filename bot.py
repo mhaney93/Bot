@@ -28,134 +28,123 @@ logging.basicConfig(
 
 positions = []
 
-# --- Move log_status and periodic_logger to top-level, not nested ---
 def log_status():
-    try:
-        now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    while True:
         try:
-            order_book = exchange.fetch_order_book(symbol)
-            print("RAW order_book type:", type(order_book))
-            print("RAW order_book dir:", dir(order_book))
-            print("RAW order_book:", order_book)
+            now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             try:
-                print("RAW order_book['asks']:", order_book['asks'][:5])
-                print("RAW order_book['bids']:", order_book['bids'][:5])
-            except Exception as sub_e:
-                print("Exception accessing order_book['asks'] or ['bids']:", sub_e)
+                order_book = exchange.fetch_order_book(symbol)
+                print("RAW order_book type:", type(order_book))
+                print("RAW order_book dir:", dir(order_book))
+                print("RAW order_book:", order_book)
+                try:
+                    print("RAW order_book['asks']:", order_book['asks'][:5])
+                    print("RAW order_book['bids']:", order_book['bids'][:5])
+                except Exception as sub_e:
+                    print("Exception accessing order_book['asks'] or ['bids']:", sub_e)
+                    import traceback; traceback.print_exc()
+            except Exception as e:
+                print("Exception fetching order book:", e)
                 import traceback; traceback.print_exc()
-        except Exception as e:
-            print("Exception fetching order book:", e)
-            import traceback; traceback.print_exc()
-            logging.error(f"Error fetching order book in log_status: {e}")
-            return
-        # Get USD balance
-        try:
-            balances = exchange.fetch_balance()
-            usd_balance = balances['total'].get('USD', 0)
-            if usd_balance == 0:
-                usd_balance = balances['total'].get('USD4', 0)
-        except Exception as e:
-            logging.error(f"Error fetching account info in log_status: {e}")
-            usd_balance = 0
-        # Print raw order book data for debugging
-        print("RAW order_book['asks']:", order_book['asks'][:5])
-        print("RAW order_book['bids']:", order_book['bids'][:5])
-        # Cumulate asks
-        asks = order_book['asks']
-        cum_qty = 0.0
-        cum_usd = 0.0
-        weighted_ask_sum = 0.0
-        for entry in asks:
+                logging.error(f"Error fetching order book in log_status: {e}")
+                time.sleep(10)
+                continue
+            # Get USD balance
             try:
-                price = qty = None
-                if isinstance(entry, (list, tuple)) and len(entry) == 2:
-                    price, qty = entry
-                elif isinstance(entry, dict):
-                    # Try common keys
-                    price = entry.get('price')
-                    qty = entry.get('amount', entry.get('qty'))
-                if price is None or qty is None:
-                    logging.debug(f"Skipping malformed ask entry: {entry}")
-                    continue
+                balances = exchange.fetch_balance()
+                usd_balance = balances['total'].get('USD', 0)
+                if usd_balance == 0:
+                    usd_balance = balances['total'].get('USD4', 0)
+            except Exception as e:
+                logging.error(f"Error fetching account info in log_status: {e}")
+                usd_balance = 0
+            # Print raw order book data for debugging
+            print("RAW order_book['asks']:", order_book['asks'][:5])
+            print("RAW order_book['bids']:", order_book['bids'][:5])
+            # ...existing code for asks and bids processing...
+            asks = order_book['asks']
+            cum_qty = 0.0
+            cum_usd = 0.0
+            weighted_ask_sum = 0.0
+            for entry in asks:
                 try:
-                    price = float(price)
-                    qty = float(qty)
-                except Exception:
-                    logging.debug(f"Skipping ask entry with non-numeric price/qty: {entry}")
-                    continue
-                usd_val = price * qty
-                cum_qty += qty
-                cum_usd += usd_val
-                weighted_ask_sum += price * usd_val
-                # Final type check and error catch before comparison
-                try:
-                    if cum_usd >= 50:
-                        break
-                except Exception as err:
-                    print(f"ASKS COMPARISON ERROR: cum_usd={cum_usd}, entry={entry}")
+                    price = qty = None
+                    if isinstance(entry, (list, tuple)) and len(entry) == 2:
+                        price, qty = entry
+                    elif isinstance(entry, dict):
+                        # Try common keys
+                        price = entry.get('price')
+                        qty = entry.get('amount', entry.get('qty'))
+                    if price is None or qty is None:
+                        logging.debug(f"Skipping malformed ask entry: {entry}")
+                        continue
+                    try:
+                        price = float(price)
+                        qty = float(qty)
+                    except Exception:
+                        logging.debug(f"Skipping ask entry with non-numeric price/qty: {entry}")
+                        continue
+                    usd_val = price * qty
+                    cum_qty += qty
+                    cum_usd += usd_val
+                    weighted_ask_sum += price * usd_val
+                    # Final type check and error catch before comparison
+                    try:
+                        if cum_usd >= 50:
+                            break
+                    except Exception as err:
+                        print(f"ASKS COMPARISON ERROR: cum_usd={cum_usd}, entry={entry}")
+                        import traceback; traceback.print_exc()
+                        continue
+                except Exception as loop_err:
+                    print(f"ASKS LOOP ERROR: {loop_err}, entry={entry}, cum_qty={cum_qty}, cum_usd={cum_usd}")
                     import traceback; traceback.print_exc()
                     continue
-            except Exception as loop_err:
-                print(f"ASKS LOOP ERROR: {loop_err}, entry={entry}, cum_qty={cum_qty}, cum_usd={cum_usd}")
-                import traceback; traceback.print_exc()
-                continue
-        weighted_ask = weighted_ask_sum / cum_usd if cum_usd > 0 else None
-        # Cumulate bids
-        bids = order_book['bids']
-        bid_cum_qty = 0.0
-        bid_cum_usd = 0.0
-        weighted_bid_sum = 0.0
-        for entry in bids:
-            try:
-                price = qty = None
-                if isinstance(entry, (list, tuple)) and len(entry) == 2:
-                    price, qty = entry
-                elif isinstance(entry, dict):
-                    price = entry.get('price')
-                    qty = entry.get('amount', entry.get('qty'))
-                if price is None or qty is None:
-                    logging.debug(f"Skipping malformed bid entry: {entry}")
-                    continue
+            weighted_ask = weighted_ask_sum / cum_usd if cum_usd > 0 else None
+            # Cumulate bids
+            bids = order_book['bids']
+            bid_cum_qty = 0.0
+            bid_cum_usd = 0.0
+            weighted_bid_sum = 0.0
+            for entry in bids:
                 try:
-                    price = float(price)
-                    qty = float(qty)
-                except Exception:
-                    logging.debug(f"Skipping bid entry with non-numeric price/qty: {entry}")
-                    continue
-                # Final type checks before arithmetic/comparison
-                if not all(isinstance(x, (int, float)) for x in [bid_cum_qty, qty, cum_qty]):
-                    logging.debug(f"Skipping bid entry due to non-numeric accumulator: bid_cum_qty={bid_cum_qty}, qty={qty}, cum_qty={cum_qty}")
-                    continue
-                try:
-                    if bid_cum_qty + qty > cum_qty:
-                        qty = cum_qty - bid_cum_qty
-                except Exception as err:
-                    print(f"BIDS COMPARISON ERROR: bid_cum_qty={bid_cum_qty}, qty={qty}, cum_qty={cum_qty}, entry={entry}")
+                    price = qty = None
+                    if isinstance(entry, (list, tuple)) and len(entry) == 2:
+                        price, qty = entry
+                    elif isinstance(entry, dict):
+                        price = entry.get('price')
+                        qty = entry.get('amount', entry.get('qty'))
+                    if price is None or qty is None:
+                        logging.debug(f"Skipping malformed bid entry: {entry}")
+                        continue
+                    try:
+                        price = float(price)
+                        qty = float(qty)
+                    except Exception:
+                        logging.debug(f"Skipping bid entry with non-numeric price/qty: {entry}")
+                        continue
+                    # Final type checks before arithmetic/comparison
+                    if not all(isinstance(x, (int, float)) for x in [bid_cum_qty, qty, cum_qty]):
+                        logging.debug(f"Skipping bid entry due to non-numeric accumulator: bid_cum_qty={bid_cum_qty}, qty={qty}, cum_qty={cum_qty}")
+                        continue
+                    try:
+                        if bid_cum_qty + qty > cum_qty:
+                            qty = cum_qty - bid_cum_qty
+                    except Exception as err:
+                        print(f"BIDS COMPARISON ERROR: bid_cum_qty={bid_cum_qty}, qty={qty}, cum_qty={cum_qty}, entry={entry}")
+                        import traceback; traceback.print_exc()
+                        continue
+                    bid_cum_qty += qty
+                except Exception as loop_err:
+                    print(f"BIDS LOOP ERROR: {loop_err}, entry={entry}, bid_cum_qty={bid_cum_qty}, cum_qty={cum_qty}")
                     import traceback; traceback.print_exc()
                     continue
-                bid_cum_qty += qty
-            except Exception as loop_err:
-                print(f"BIDS LOOP ERROR: {loop_err}, entry={entry}, bid_cum_qty={bid_cum_qty}, cum_qty={cum_qty}")
-                import traceback; traceback.print_exc()
-                continue
-    except Exception as e:
-        logging.error(f"Error in log_status: {e}")
-        traceback.print_exc()
-
+        except Exception as e:
+            logging.error(f"Error in log_status: {e}")
+            traceback.print_exc()
+        time.sleep(10)
 def get_24h_stats_file():
     return os.path.join(os.path.dirname(__file__), 'pl_24h.pkl')
-
-def update_24h_stats(profit_loss):
-    stats_file = get_24h_stats_file()
-    now = time.time()
-    # Load or initialize
-    if os.path.exists(stats_file):
-        with open(stats_file, 'rb') as f:
-            stats = pickle.load(f)
-    else:
-        stats = []
-    # Add new P/L event
-    stats.append((now, profit_loss))
     # Remove events older than 24h
     stats = [(t, pl) for t, pl in stats if now - t <= 86400]
     # Save
@@ -164,7 +153,7 @@ def update_24h_stats(profit_loss):
     return stats
 
 def get_24h_pl():
-    stats_file = get_24h_stats_file()
+    stats_file = get_24h_stats_file()  # Ensure stats_file is defined correctly
     now = time.time()
     if os.path.exists(stats_file):
         with open(stats_file, 'rb') as f:
@@ -235,6 +224,7 @@ if __name__ == "__main__":
     logger_thread = threading.Thread(target=periodic_logger, daemon=True)
     trading_thread.start()
     logger_thread.start()
-    # Keep main thread alive
+    # Keep main thread alive and print heartbeat
     while True:
+        print("[Main] Bot heartbeat - still running...")
         time.sleep(60)
