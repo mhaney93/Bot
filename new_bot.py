@@ -14,14 +14,14 @@ LOG_INTERVAL = 10  # seconds
 USD_TRADE_PCT = 0.9  # 90%
 
 # --- LOGGING SETUP ---
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s %(message)s',  # Removed %(levelname)s
-    handlers=[
-        logging.FileHandler("new_bot.log"),
-        logging.StreamHandler()
-    ]
-)
+for handler in logging.root.handlers[:]:
+    logging.root.removeHandler(handler)
+formatter = logging.Formatter('%(asctime)s %(message)s')
+file_handler = logging.FileHandler("new_bot.log")
+file_handler.setFormatter(formatter)
+stream_handler = logging.StreamHandler()
+stream_handler.setFormatter(formatter)
+logging.basicConfig(level=logging.INFO, handlers=[file_handler, stream_handler])
 
 # --- GLOBALS ---
 position = None  # {'entry': float, 'amount': float, 'ratchet': float}
